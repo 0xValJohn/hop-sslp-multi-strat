@@ -46,7 +46,7 @@ contract StrategyFixture is ExtendedTest {
     // @dev used for non-fuzz tests to test large amounts
     uint256 public bigAmount;
     // Used for integer approximation
-    uint256 public constant DELTA = 10**5;
+    uint256 public constant DELTA = 10**1;
 
     function setUp() public virtual {
         _setTokenPrices();

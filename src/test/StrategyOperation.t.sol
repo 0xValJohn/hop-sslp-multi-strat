@@ -220,20 +220,20 @@ contract StrategyOperationsTest is StrategyFixture {
         // vm.expectRevert("!protected");
         // strategy.sweep(strategy.protectedToken());
 
-        uint256 beforeBalance = weth.balanceOf(gov);
-        uint256 wethAmount = 1 ether;
-        deal(address(weth), user, wethAmount);
-        vm.prank(user);
-        weth.transfer(address(strategy), wethAmount);
-        assertNeq(address(weth), address(strategy.want()));
-        assertEq(weth.balanceOf(user), 0);
-        vm.prank(gov);
-        strategy.sweep(address(weth));
-        assertRelApproxEq(
-            weth.balanceOf(gov),
-            wethAmount + beforeBalance,
-            DELTA
-        );
+        // uint256 beforeBalance = weth.balanceOf(gov);
+        // uint256 wethAmount = 1 ether;
+        // deal(address(weth), user, wethAmount);
+        // vm.prank(user);
+        // weth.transfer(address(strategy), wethAmount);
+        // assertNeq(address(weth), address(strategy.want()));
+        // assertEq(weth.balanceOf(user), 0);
+        // vm.prank(gov);
+        // strategy.sweep(address(weth));
+        // assertRelApproxEq(
+        //     weth.balanceOf(gov),
+        //     wethAmount + beforeBalance,
+        //     DELTA
+        // );
     }
 
     function testTriggers(uint256 _amount) public {
