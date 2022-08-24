@@ -1,4 +1,6 @@
 make all --print-data-base --no-builtin-variables --no-builtin-rules --question
+make: *** No rule to make target 'all'.  Stop.
+
 # GNU Make 4.3
 # Built for x86_64-pc-linux-gnu
 # Copyright (C) 1988-2020 Free Software Foundation, Inc.
@@ -6,7 +8,7 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Tue Aug 16 18:31:21 2022
+# Make data base, printed on Wed Aug 24 10:46:17 2022
 
 # Variables
 
@@ -45,7 +47,7 @@ XDG_DATA_DIRS = /usr/share/pop:/usr/share/gnome:/home/simon/.local/share/flatpak
 # automatic
 %F = $(notdir $%)
 # environment
-VSCODE_CODE_CACHE_PATH = /home/simon/.config/Code/CachedData/6d9b74a70ca9c7733b29f0456fd8195364076dda
+VSCODE_CODE_CACHE_PATH = /home/simon/.config/Code/CachedData/e4503b30fc78200f846c62cf8091b76ff5547662
 # environment
 LANG = C
 # makefile (from '.env', line 5)
@@ -85,7 +87,7 @@ MAKEFILE_LIST := Makefile .env
 # automatic
 @F = $(notdir $@)
 # environment
-VSCODE_PID = 76837
+VSCODE_PID = 20393
 # environment
 XDG_SESSION_TYPE = x11
 # automatic
@@ -93,7 +95,7 @@ XDG_SESSION_TYPE = x11
 # makefile (from 'Makefile', line 10)
 FORK_URL := https://arbitrum-mainnet.infura.io/v3/19c26afba6a149c6afc0fe2d566d39bb 
 # environment
-SESSION_MANAGER = local/pop-os:@/tmp/.ICE-unix/3065,unix/pop-os:/tmp/.ICE-unix/3065
+SESSION_MANAGER = local/pop-os:@/tmp/.ICE-unix/3122,unix/pop-os:/tmp/.ICE-unix/3122
 # automatic
 *F = $(notdir $*)
 # makefile (from '.env', line 4)
@@ -133,7 +135,7 @@ MAKEFILES :=
 # automatic
 ^F = $(notdir $^)
 # environment
-INVOCATION_ID = f041d72e47054670b639850ec4a4b217
+INVOCATION_ID = 227c960177594522a3c6014042806afe
 # environment
 USERNAME = simon
 # environment
@@ -161,7 +163,7 @@ GIO_LAUNCHED_DESKTOP_FILE = /usr/share/applications/code.desktop
 # makefile
 .DEFAULT_GOAL := update
 # environment
-SYSTEMD_EXEC_PID = 3084
+SYSTEMD_EXEC_PID = 3141
 # makefile (from '.env', line 1)
 ETH_RPC_URL = https://mainnet.infura.io/v3/34d774f6ef71447e8f5b53b34c17d346
 # environment
@@ -175,9 +177,9 @@ MAKE_VERSION := 4.3
 # makefile (from '.env', line 2)
 FTM_RPC_URL = https://rpcapi.fantom.network
 # environment
-MANAGERPID = 2801
+MANAGERPID = 2858
 # environment
-GIO_LAUNCHED_DESKTOP_FILE_PID = 76837
+GIO_LAUNCHED_DESKTOP_FILE_PID = 20393
 # environment
 _ = /usr/share/code/code
 # environment
@@ -187,7 +189,7 @@ GPG_AGENT_INFO = /run/user/1000/gnupg/S.gpg-agent:0:1
 # makefile (from 'Makefile', line 14)
 constructor-args := 
 # environment
-JOURNAL_STREAM = 8:43664
+JOURNAL_STREAM = 8:48682
 # environment
 XDG_SESSION_CLASS = user
 # environment
@@ -199,7 +201,7 @@ QT_IM_MODULE = ibus
 # environment
 ELECTRON_RUN_AS_NODE = 1
 # environment
-VSCODE_IPC_HOOK = /run/user/1000/vscode-1a88d1bc-1.70.1-main.sock
+VSCODE_IPC_HOOK = /run/user/1000/vscode-1a88d1bc-1.70.2-main.sock
 # default
 .RECIPEPREFIX := 
 # automatic
@@ -271,7 +273,7 @@ trace-contract:
 # Not a target:
 Makefile:
 #  Implicit rule search has been done.
-#  Last modified 2022-08-16 11:29:03.021396466
+#  Last modified 2022-08-17 12:38:58.273758291
 #  File has been updated.
 #  Successfully updated.
 
@@ -279,6 +281,7 @@ clean:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
+ 
 #  recipe to execute (from 'Makefile', line 25):
 	 forge clean
 
@@ -301,9 +304,6 @@ trace-local:
 #  Modification time never checked.
 #  File has not been updated.
 #  recipe to execute (from 'Makefile', line 24):
- 
-make: *** No rule to make target 'all'.  Stop.
-
 	 forge test -vvv
 
 # Not a target:
@@ -361,6 +361,6 @@ test-single:
 # strcache performance: lookups = 58 / hit rate = 31%
 # hash-table stats:
 # Load=40/8192=0%, Rehash=0, Collisions=0/58=0%
-# Finished Make data base on Tue Aug 16 18:31:21 2022
+# Finished Make data base on Wed Aug 24 10:46:17 2022
 
  

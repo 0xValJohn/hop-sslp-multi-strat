@@ -14,7 +14,7 @@ FORK_URL := ${ARBI_RPC_URL}
 constructor-args := 
 
 build  :; forge build
-test   :; forge test -vvvvv --fork-url ${FORK_URL} --etherscan-api-key ${ETHERSCAN_API_KEY}
+test   :; forge test -vvv --fork-url ${FORK_URL} --etherscan-api-key ${ETHERSCAN_API_KEY}
 trace   :; forge test -vvv --fork-url ${FORK_URL} --etherscan-api-key ${ETHERSCAN_API_KEY}
 test-contract :; forge test -vv --fork-url ${FORK_URL} --match-contract $(contract) --etherscan-api-key ${ETHERSCAN_API_KEY}
 trace-contract :; forge test -vvv --fork-url ${FORK_URL} --match-contract $(contract) --etherscan-api-key ${ETHERSCAN_API_KEY}
