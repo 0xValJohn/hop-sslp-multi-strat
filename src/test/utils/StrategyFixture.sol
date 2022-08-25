@@ -19,13 +19,21 @@ string constant vaultArtifact = "artifacts/Vault.json";
 contract StrategyFixture is ExtendedTest {
     using SafeERC20 for IERC20;
 
-    IVault public vault;
-    Strategy public strategy;
+    struct AssetFixture { // To test multiple assets
+        IVault vault;
+        Strategy strategy;
+        IERC20 want;
+    }
+
     IERC20 public weth;
-    IERC20 public want;
+
+    AssetFixture[] public assetFixtures;
 
     mapping(string => address) public tokenAddrs;
     mapping(string => uint256) public tokenPrices;
+    mapping(string => IERC20) public wantLp;
+    mapping(string => IERC20) public hop;
+    mapping(string => uint256) public maxSlippage;
 
     address public gov = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
     address public user = address(1);
@@ -36,64 +44,57 @@ contract StrategyFixture is ExtendedTest {
     address public strategist = address(6);
     address public keeper = address(7);
 
-    uint256 public minFuzzAmt;
+    uint256 public minFuzzAmt = 1 ether; // 10 cents
     // @dev maximum amount of want tokens deposited based on @maxDollarNotional
-    uint256 public maxFuzzAmt;
-    // @dev maximum dollar amount of tokens to be deposited
-    uint256 public maxDollarNotional = 1_000_000;
-    // @dev maximum dollar amount of tokens for single large amount
-    uint256 public bigDollarNotional = 49_000_000;
-    // @dev used for non-fuzz tests to test large amounts
-    uint256 public bigAmount;
+    uint256 public maxFuzzAmt = 25_000_000 ether; // $25M
     // Used for integer approximation
-    uint256 public constant DELTA = 10**1;
+    uint256 public constant DELTA = 10**4;
 
     function setUp() public virtual {
         _setTokenPrices();
         _setTokenAddrs();
+        _setWantLp();
+        _setHop();
+        _setMaxSlippage();
 
-        // Choose a token from the tokenAddrs mapping, see _setTokenAddrs for options
-        string memory token = "WETH";
         weth = IERC20(tokenAddrs["WETH"]);
-        want = IERC20(tokenAddrs[token]);
 
-        (address _vault, address _strategy) = deployVaultAndStrategy(
-            address(want),
-            gov,
-            rewards,
-            "",
-            "",
-            guardian,
-            management,
-            keeper,
-            strategist
-        );
-        vault = IVault(_vault);
-        strategy = Strategy(_strategy);
+        string[4] memory _tokensToTest = ["WETH","USDT","USDC","DAI"];
 
-        minFuzzAmt = 10**vault.decimals() / 10;
-        maxFuzzAmt =
-            uint256(maxDollarNotional / tokenPrices[token]) *
-            10**vault.decimals();
-        bigAmount =
-            uint256(bigDollarNotional / tokenPrices[token]) *
-            10**vault.decimals();
+        for (uint8 i = 0; i < _tokensToTest.length; ++i) {
+            string memory _tokenToTest = _tokensToTest[i];
+            IERC20 _want = IERC20(tokenAddrs[_tokenToTest]);
 
-        // add more labels to make your traces readable
-        vm.label(address(vault), "Vault");
-        vm.label(address(strategy), "Strategy");
-        vm.label(address(want), "Want");
-        vm.label(gov, "Gov");
-        vm.label(user, "User");
-        vm.label(whale, "Whale");
-        vm.label(rewards, "Rewards");
-        vm.label(guardian, "Guardian");
-        vm.label(management, "Management");
-        vm.label(strategist, "Strategist");
-        vm.label(keeper, "Keeper");
+            (address _vault, address _strategy) = deployVaultAndStrategy(
+                address(_want),
+                _tokenToTest,
+                gov,
+                rewards,
+                "",
+                "",
+                guardian,
+                management,
+                keeper,
+                strategist
+                );
 
-        // do here additional setup
-    }
+                assetFixtures.push(AssetFixture(IVault(_vault), Strategy(_strategy), _want));
+
+                vm.label(address(_vault), string(abi.encodePacked(_tokenToTest, "Vault")));
+                vm.label(address(_strategy), string(abi.encodePacked(_tokenToTest, "Strategy")));
+                vm.label(address(_want), _tokenToTest);
+            }
+
+            // add more labels to make your traces readable
+            vm.label(gov, "Gov");
+            vm.label(user, "User");
+            vm.label(whale, "Whale");
+            vm.label(rewards, "Rewards");
+            vm.label(guardian, "Guardian");
+            vm.label(management, "Management");
+            vm.label(strategist, "Strategist");
+            vm.label(keeper, "Keeper");
+        }
 
     // Deploys a vault
     function deployVault(
@@ -108,7 +109,7 @@ contract StrategyFixture is ExtendedTest {
         vm.prank(_gov);
         address _vaultAddress = deployCode(vaultArtifact);
         IVault _vault = IVault(_vaultAddress);
-
+        
         vm.prank(_gov);
         _vault.initialize(
             _token,
@@ -127,8 +128,16 @@ contract StrategyFixture is ExtendedTest {
     }
 
     // Deploys a strategy
-    function deployStrategy(address _vault) public returns (address) {
-        Strategy _strategy = new Strategy(_vault);
+    function deployStrategy(
+        address _vault,
+        string memory _tokenSymbol
+        ) public returns (address) {
+        Strategy _strategy = new Strategy(
+            _vault,
+            wantLp[_tokenSymbol],
+            hop[_tokenSymbol],
+            maxSlippage[_tokenSymbol]
+            );
 
         return address(_strategy);
     }
@@ -136,6 +145,7 @@ contract StrategyFixture is ExtendedTest {
     // Deploys a vault and strategy attached to vault
     function deployVaultAndStrategy(
         address _token,
+        string memory _tokenSymbol,
         address _gov,
         address _rewards,
         string memory _name,
@@ -157,7 +167,9 @@ contract StrategyFixture is ExtendedTest {
         IVault _vault = IVault(_vaultAddr);
 
         vm.prank(_strategist);
-        _strategyAddr = deployStrategy(_vaultAddr);
+        _strategyAddr = deployStrategy(
+            _vaultAddr,
+            _tokenSymbol);
         Strategy _strategy = Strategy(_strategyAddr);
 
         vm.prank(_strategist);
@@ -171,9 +183,36 @@ contract StrategyFixture is ExtendedTest {
 
     function _setTokenAddrs() internal {
         tokenAddrs["WETH"] = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+        tokenAddrs["USDT"] = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+        tokenAddrs["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        tokenAddrs["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    }
+
+    function _setWantLp() internal {
+        wantLp["WETH"] = 0x59745774Ed5EfF903e615F5A2282Cae03484985a;
+        wantLp["USDT"] = 0xCe3B19D820CB8B9ae370E423B0a329c4314335fE;
+        wantLp["USDC"] = 0xB67c014FA700E69681a673876eb8BAFAA36BFf71;
+        wantLp["DAI"] = 0x68f5d998F00bB2460511021741D098c05721d8fF;
+    }
+
+    function _setHop() internal {
+        hop["WETH"] = 0x652d27c0F72771Ce5C76fd400edD61B406Ac6D97;
+        hop["USDT"] = 0x18f7402B673Ba6Fb5EA4B95768aABb8aaD7ef18a;
+        hop["USDC"] = 0x10541b07d8Ad2647Dc6cD67abd4c03575dade261;
+        hop["DAI"] = 0xa5A33aB9063395A90CCbEa2D86a62EcCf27B5742;
+    }
+
+    function _setMaxSlippage() internal {
+        maxSlippage["WETH"] = 30;
+        maxSlippage["USDT"] = 30;
+        maxSlippage["USDC"] = 30;
+        maxSlippage["DAI"] = 30;
     }
 
     function _setTokenPrices() internal {
-        tokenPrices["WETH"] = 1_000;
+        tokenPrices["WETH"] = 1_750;
+        tokenPrices["USDT"] = 1;
+        tokenPrices["USDC"] = 1;
+        tokenPrices["DAI"] = 1;
     }
 }

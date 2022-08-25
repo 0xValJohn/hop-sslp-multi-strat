@@ -15,7 +15,7 @@ contract Strategy is BaseStrategy {
 // ---------------------- STATE VARIABLES ----------------------
     
     IERC20 public wantLp;
-    ISwap public hopISwap;
+    ISwap public hop;
     uint256 internal constant MAX_BIPS = 10_000;
     uint256 internal wantDecimals;
     uint256 public maxSlippage;  
@@ -23,15 +23,22 @@ contract Strategy is BaseStrategy {
 // ---------------------- CONSTRUCTOR ----------------------
 
     constructor(
-        address _vault
-    ) public BaseStrategy(_vault) {
-         _initializeStrat();
+        address _vault,
+        uint256 _maxSlippage,
+        IERC20 _wantLp,
+        ISwap _hop
+        ) public BaseStrategy(_vault) {
+         _initializeStrat(_maxSlippage, _wantLp, _hop);
     }
 
-    function _initializeStrat() internal {
-        maxSlippage = 30;
-        wantLp = IERC20(0x59745774Ed5EfF903e615F5A2282Cae03484985a);
-        hopISwap = ISwap(0x652d27c0F72771Ce5C76fd400edD61B406Ac6D97);
+    function _initializeStrat(
+        uint256 _maxSlippage,
+        IERC20 _wantLp,
+        ISwap _hop
+        ) internal {
+        maxSlippage = _maxSlippage;
+        wantLp = _wantLp;
+        hop = _hop;
         wantDecimals = IERC20Metadata(address(want)).decimals();
     }
 
@@ -46,13 +53,10 @@ contract Strategy is BaseStrategy {
         address _keeper,
         uint256 _maxSlippage,
         IERC20 _wantLp,
-        ISwap _hopISwap
+        ISwap _hop
     ) external {
         _initialize(_vault, _strategist, _rewards, _keeper);
-        maxSlippage = _maxSlippage;
-        wantLp = _wantLp;
-        hopISwap = _hopISwap;
-        wantDecimals = IERC20Metadata(address(want)).decimals();
+        _initializeStrat(_maxSlippage, _wantLp, _hop);
     }
 
     function cloneHop(
@@ -62,7 +66,7 @@ contract Strategy is BaseStrategy {
         address _keeper,
         uint256 _maxSlippage,
         IERC20 _wantLp,
-        ISwap _hopISwap
+        ISwap _hop
         ) external returns (address newStrategy) {
             require(isOriginal, "!clone");
             bytes20 addressBytes = bytes20(address(this));
@@ -89,7 +93,7 @@ contract Strategy is BaseStrategy {
                 _keeper,
                 _maxSlippage,
                 _wantLp,
-                _hopISwap
+                _hop
             );
 
             emit Cloned(newStrategy);
@@ -178,6 +182,7 @@ contract Strategy is BaseStrategy {
         } else {
             return (_amountNeeded, 0);
         }
+        // if we had to remove liquidity, look at the updated balanceOfWant
         _liquidWant = balanceOfWant();
         if (_liquidWant >= _amountNeeded) {
             _liquidatedAmount = _amountNeeded;
@@ -189,7 +194,7 @@ contract Strategy is BaseStrategy {
 
     function liquidateAllPositions() internal override returns (uint256) {
         uint256 _lpTokenAmount = wantLp.balanceOf(address(this));
-        uint256 _amountToLiquidate = (_lpTokenAmount * hopISwap.getVirtualPrice())/1e18;
+        uint256 _amountToLiquidate = (_lpTokenAmount * hop.getVirtualPrice())/1e18;
         _removeliquidity(_amountToLiquidate);
         return want.balanceOf(address(this));
     }
@@ -197,7 +202,7 @@ contract Strategy is BaseStrategy {
     function prepareMigration(address _newStrategy) internal override {
         _checkAllowance(_newStrategy, address(want), want.balanceOf(address(this)));
         want.transfer(_newStrategy, balanceOfWant());
-        _checkAllowance(_newStrategy, address(wantLp), wantLp.balanceOf(address(this))); //TODO: check if required
+        _checkAllowance(_newStrategy, address(wantLp), wantLp.balanceOf(address(this)));
         wantLp.transfer(_newStrategy, wantLp.balanceOf(address(this)));
     }
 
@@ -236,60 +241,56 @@ contract Strategy is BaseStrategy {
     function _addLiquidity(uint256 _wantAmount) internal {
         uint256[] memory _amountsToAdd = new uint256[](2); 
         _amountsToAdd[0] = _wantAmount;
-        uint256 _wantInLpToken = _wantAmount * wantDecimals / hopISwap.getVirtualPrice();
+        uint256 _wantInLpToken = _wantAmount * wantDecimals / hop.getVirtualPrice();
         // enforcing slippage protection
-        uint256 _expectedLpToMint = hopISwap.calculateTokenAmount(address(this), _amountsToAdd, true);
+        uint256 _expectedLpToMint = hop.calculateTokenAmount(address(this), _amountsToAdd, true);
         uint256 _mintLpToMint = _wantInLpToken - (_wantInLpToken  * maxSlippage) / MAX_BIPS;
         if (_expectedLpToMint < _mintLpToMint) {
             return; // we revert if slippage test fails
-        } else {
-            uint256 _deadline = block.timestamp;
-            _checkAllowance(address(hopISwap), address(want), _wantAmount); 
-            /** 
-            * @param amounts the amounts of each token to add, in their native precision
-            * @param minToMint the minimum LP tokens adding this amount of liquidity
-            */
-            hopISwap.addLiquidity(_amountsToAdd, _mintLpToMint, _deadline);
         }
+        _checkAllowance(address(hop), address(want), _wantAmount); 
+        /** 
+        * @param amounts the amounts of each token to add, in their native precision
+        * @param minToMint the minimum LP tokens adding this amount of liquidity
+        */
+        hop.addLiquidity(_amountsToAdd, _mintLpToMint, block.timestamp);
     }
 
     function _removeliquidity(uint256 _wantAmount) internal returns (uint256 _liquidationProfit, uint256 _liquidationLoss) {
-        uint256 _amountsToRemove = Math.min(_wantAmount * wantDecimals / hopISwap.getVirtualPrice(), wantLp.balanceOf(address(this)));
+        uint256 _amountsToRemove = Math.min(_wantAmount * wantDecimals / hop.getVirtualPrice(), wantLp.balanceOf(address(this)));
         uint256 _estimatedTotalAssetsBefore = estimatedTotalAssets();
         uint256 _expectedMinWantAmount = _calculateRemoveLiquidityOneToken(_amountsToRemove);
         uint256 _minWantOut = _wantAmount - (_wantAmount * maxSlippage) / MAX_BIPS;
         // enforcing slippage protection
        if (_expectedMinWantAmount < _minWantOut) {
             return (0,0);
-        } else {
-            uint256 _deadline = block.timestamp;
-            _checkAllowance(address(hopISwap), address(wantLp), _amountsToRemove); 
-            /**
-            * @param tokenAmount the amount of the LP token you want to receive
-            * @param tokenIndex the index of the token you want to receive
-            * @param minAmount the minimum amount to withdraw, otherwise revert
-            */
-            hopISwap.removeLiquidityOneToken(_amountsToRemove, 0, _minWantOut, _deadline);
-            uint256 _estimatedTotalAssetsAfter = estimatedTotalAssets();
-            // depending on the reserves balances, there will be a positive or negative price impact
-            if (_estimatedTotalAssetsAfter >= _estimatedTotalAssetsBefore) {
-                // remove liq  resulted in a profit
-                return (_estimatedTotalAssetsAfter - _estimatedTotalAssetsBefore, 0);
-            } else { 
-                // remove liq resulted in a loss
-                return (0, _estimatedTotalAssetsBefore - _estimatedTotalAssetsAfter);
-            }
+        }
+        _checkAllowance(address(hop), address(wantLp), _amountsToRemove); 
+        /**
+        * @param tokenAmount the amount of the LP token you want to receive
+        * @param tokenIndex the index of the token you want to receive
+        * @param minAmount the minimum amount to withdraw, otherwise revert
+        */
+        hop.removeLiquidityOneToken(_amountsToRemove, 0, _minWantOut, block.timestamp);
+        uint256 _estimatedTotalAssetsAfter = estimatedTotalAssets();
+        // depending on the reserves balances, there will be a positive or negative price impact
+        if (_estimatedTotalAssetsAfter >= _estimatedTotalAssetsBefore) {
+            // remove liq  resulted in a profit
+            return (_estimatedTotalAssetsAfter - _estimatedTotalAssetsBefore, 0);
+        } else { 
+            // remove liq resulted in a loss
+            return (0, _estimatedTotalAssetsBefore - _estimatedTotalAssetsAfter);
         }
     }
 
     function _calculateRemoveLiquidityOneToken(uint256 _lpTokenAmount) public view returns (uint256) {
-        return hopISwap.calculateRemoveLiquidityOneToken(address(this), _lpTokenAmount, 0);
+        return hop.calculateRemoveLiquidityOneToken(address(this), _lpTokenAmount, 0);
     }
 
     // using virtual price (pool_reserves/lp_supply) to estimate LP token value
     function valueLpToWant() public view returns (uint256) {
         uint256 _lpTokenAmount = wantLp.balanceOf(address(this));
-        uint256 _valueLpToWant = (_lpTokenAmount * hopISwap.getVirtualPrice())/1e18;
+        uint256 _valueLpToWant = (_lpTokenAmount * hop.getVirtualPrice())/1e18;
         return _valueLpToWant;
     }
 
