@@ -7,6 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ExtendedTest} from "./ExtendedTest.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IVault} from "../../interfaces/Vault.sol";
+import "../../interfaces/Hop/ISwap.sol";
 
 // NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../../Strategy.sol";
@@ -31,8 +32,8 @@ contract StrategyFixture is ExtendedTest {
 
     mapping(string => address) public tokenAddrs;
     mapping(string => uint256) public tokenPrices;
-    mapping(string => IERC20) public wantLp;
-    mapping(string => IERC20) public hop;
+    mapping(string => address) public wantLp;
+    mapping(string => address) public hop;
     mapping(string => uint256) public maxSlippage;
 
     address public gov = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;

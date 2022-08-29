@@ -25,20 +25,20 @@ contract Strategy is BaseStrategy {
     constructor(
         address _vault,
         uint256 _maxSlippage,
-        IERC20 _wantLp,
-        ISwap _hop
+        address _wantLp,
+        address _hop
         ) public BaseStrategy(_vault) {
          _initializeStrat(_maxSlippage, _wantLp, _hop);
     }
 
     function _initializeStrat(
         uint256 _maxSlippage,
-        IERC20 _wantLp,
-        ISwap _hop
+        address _wantLp,
+        address _hop
         ) internal {
         maxSlippage = _maxSlippage;
-        wantLp = _wantLp;
-        hop = _hop;
+        wantLp = IERC20(_wantLp);
+        hop = ISwap(_hop);
         wantDecimals = IERC20Metadata(address(want)).decimals();
     }
 
@@ -52,8 +52,8 @@ contract Strategy is BaseStrategy {
         address _rewards,
         address _keeper,
         uint256 _maxSlippage,
-        IERC20 _wantLp,
-        ISwap _hop
+        address _wantLp,
+        address _hop
     ) external {
         _initialize(_vault, _strategist, _rewards, _keeper);
         _initializeStrat(_maxSlippage, _wantLp, _hop);
@@ -65,8 +65,8 @@ contract Strategy is BaseStrategy {
         address _rewards,
         address _keeper,
         uint256 _maxSlippage,
-        IERC20 _wantLp,
-        ISwap _hop
+        address _wantLp,
+        address _hop
         ) external returns (address newStrategy) {
             require(isOriginal, "!clone");
             bytes20 addressBytes = bytes20(address(this));
