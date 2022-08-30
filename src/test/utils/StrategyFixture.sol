@@ -135,9 +135,9 @@ contract StrategyFixture is ExtendedTest {
         ) public returns (address) {
         Strategy _strategy = new Strategy(
             _vault,
+            maxSlippage[_tokenSymbol],
             wantLp[_tokenSymbol],
-            hop[_tokenSymbol],
-            maxSlippage[_tokenSymbol]
+            hop[_tokenSymbol]
             );
 
         return address(_strategy);
