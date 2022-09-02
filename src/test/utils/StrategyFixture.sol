@@ -9,6 +9,8 @@ import {Vm} from "forge-std/Vm.sol";
 import {IVault} from "../../interfaces/Vault.sol";
 import "../../interfaces/Hop/ISwap.sol";
 
+import "forge-std/console2.sol";
+
 // NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../../Strategy.sol";
 
@@ -27,6 +29,7 @@ contract StrategyFixture is ExtendedTest {
     }
 
     IERC20 public weth;
+    ISwap public hopcontract;
 
     AssetFixture[] public assetFixtures;
 
@@ -35,6 +38,7 @@ contract StrategyFixture is ExtendedTest {
     mapping(string => address) public wantLp;
     mapping(string => address) public hop;
     mapping(string => uint256) public maxSlippage;
+    mapping(string => address) public hToken;
 
     address public gov = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
     address public user = address(1);
@@ -45,11 +49,11 @@ contract StrategyFixture is ExtendedTest {
     address public strategist = address(6);
     address public keeper = address(7);
 
-    uint256 public minFuzzAmt = 1 ether; // 10 cents
+    uint256 public minFuzzAmt = 1000 ether; // 1_000 
     // @dev maximum amount of want tokens deposited based on @maxDollarNotional
-    uint256 public maxFuzzAmt = 25_000_000 ether; // $25M
+    uint256 public maxFuzzAmt = 500_000 ether; // 500k
     // Used for integer approximation
-    uint256 public constant DELTA = 10**4;
+    uint256 public constant DELTA = 1; // being lax here
 
     function setUp() public virtual {
         _setTokenPrices();
@@ -57,10 +61,11 @@ contract StrategyFixture is ExtendedTest {
         _setWantLp();
         _setHop();
         _setMaxSlippage();
+        _setHToken();
 
         weth = IERC20(tokenAddrs["WETH"]);
 
-        string[4] memory _tokensToTest = ["WETH","USDT","USDC","DAI"];
+        string[4] memory _tokensToTest = ["WETH","DAI","USDC","USDT"];
 
         for (uint8 i = 0; i < _tokensToTest.length; ++i) {
             string memory _tokenToTest = _tokensToTest[i];
@@ -184,9 +189,9 @@ contract StrategyFixture is ExtendedTest {
 
     function _setTokenAddrs() internal {
         tokenAddrs["WETH"] = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
-        tokenAddrs["USDT"] = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
-        tokenAddrs["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        tokenAddrs["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        tokenAddrs["USDT"] = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
+        tokenAddrs["USDC"] = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
+        tokenAddrs["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
     }
 
     function _setWantLp() internal {
@@ -203,6 +208,13 @@ contract StrategyFixture is ExtendedTest {
         hop["DAI"] = 0xa5A33aB9063395A90CCbEa2D86a62EcCf27B5742;
     }
 
+    function _setHToken() internal {
+        hToken["WETH"] = 0xDa7c0de432a9346bB6e96aC74e3B61A36d8a77eB;
+        hToken["USDT"] = 0x12e59C59D282D2C00f3166915BED6DC2F5e2B5C7;
+        hToken["USDC"] = 0x0ce6c85cF43553DE10FC56cecA0aef6Ff0DD444d;
+        hToken["DAI"] = 0x46ae9BaB8CEA96610807a275EBD36f8e916b5C61;
+    }    
+
     function _setMaxSlippage() internal {
         maxSlippage["WETH"] = 30;
         maxSlippage["USDT"] = 30;
@@ -215,5 +227,45 @@ contract StrategyFixture is ExtendedTest {
         tokenPrices["USDT"] = 1;
         tokenPrices["USDC"] = 1;
         tokenPrices["DAI"] = 1;
+    }
+
+    function simulateWhaleAdd(string memory _tokenSymbol, uint256 _wantTokenToLP, uint256 _hTokenToLP) public {
+        console2.log("prank whale // adding liq (_want, _hToken)", _wantTokenToLP, _hTokenToLP);
+        
+        hopcontract = ISwap(address(hop[_tokenSymbol]));
+        IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
+        IERC20 _want = IERC20(address(tokenAddrs[_tokenSymbol]));
+
+        deal(address(_hToken), whale, _hTokenToLP);
+        deal(address(_want), whale, _wantTokenToLP);
+
+        vm.startPrank(whale);
+        _hToken.approve(address(hopcontract), _hTokenToLP);
+        _want.approve(address(hopcontract), _wantTokenToLP);
+        uint256[] memory _amountsToAdd = new uint256[](2); 
+        _amountsToAdd[0] = _wantTokenToLP;
+        _amountsToAdd[1] = _hTokenToLP;      
+        hopcontract.addLiquidity(_amountsToAdd, 0, block.timestamp);
+        vm.stopPrank();
+    }
+
+
+    // here we simulate swap to generate fees 
+    function simulateLpFees(string memory _tokenSymbol, uint256 _amount) public {
+        console2.log("prank whale // simulating swap to generate fees");
+        IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
+        IERC20 _want = IERC20(address(tokenAddrs[_tokenSymbol]));
+        hopcontract = ISwap(address(hop[_tokenSymbol]));
+        vm.startPrank(whale);
+        
+        deal(address(_want), whale, _amount);
+        _want.approve(address(hopcontract), _amount);
+        hopcontract.swap(0, 1, _amount, 0, block.timestamp); // swap hToken to want
+        
+        deal(address(_hToken), whale, _amount);
+        _hToken.approve(address(hopcontract), _amount);
+        hopcontract.swap(1, 0, _amount, 0, block.timestamp); // swap want back to hToken
+        
+        vm.stopPrank();
     }
 }

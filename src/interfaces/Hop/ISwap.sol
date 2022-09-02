@@ -31,4 +31,13 @@ interface ISwap {
     function removeLiquidityOneToken(uint256 tokenAmount, uint8 tokenIndex, uint256 minAmount, uint256 deadline)
         external
         returns (uint256);
+
+    function removeLiquidityImbalance(uint256[] calldata amounts, uint256 maxBurnAmount, uint256 deadline) 
+        external
+        returns (uint256);
+
+    function swap(uint8 tokenIndexFrom, uint8 tokenIndexTo, uint256 dx, uint256 minDy, uint256 deadline) 
+        external
+        returns (uint256);
+    
 }
