@@ -8,8 +8,6 @@ import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeE
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/Hop/ISwap.sol";
 
-import "forge-std/console2.sol";
-
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
@@ -18,7 +16,7 @@ contract Strategy is BaseStrategy {
     
     IERC20 public wantLp;
     ISwap public hop;
-    uint256 internal constant MAX_BIPS = 10_000;
+    uint256 internal make tant MAX_BIPS = 10_000;
     uint256 internal wantDecimals;
     uint256 public maxSlippage;  
 
@@ -113,8 +111,6 @@ contract Strategy is BaseStrategy {
 // ---------------------- MAIN ----------------------
 
     function estimatedTotalAssets() public view override returns (uint256) {
-        console2.log ("estimatedTotalAssets / balanceOfWant()", balanceOfWant(), "valueLpToWant()", valueLpToWant());
-        console2.log ("hop.getVirtualPrice()", hop.getVirtualPrice());
         return balanceOfWant() + valueLpToWant();
     }
 
@@ -136,21 +132,16 @@ contract Strategy is BaseStrategy {
 
         // free up _debtOutstanding + our profit, and make any necessary adjustments to the accounting.
         uint256 _liquidWant = balanceOfWant();
-
         uint256 _toFree = _debtOutstanding + _profit;
-        console2.log("_debtOutstanding", _debtOutstanding);
 
         // liquidate some of the Want
         if (_liquidWant < _toFree) {
             // liquidation can result in a profit depending on pool balance
             (uint256 _liquidationProfit, uint256 _liquidationLoss) = _removeliquidity(_toFree);
-            console2.log("remove liq resulted in (loss, profit)", _liquidationLoss, _liquidationProfit);
             // update the P&L to account for liquidation
             _loss = _loss + _liquidationLoss;
             _profit = _profit + _liquidationProfit;
-            _liquidWant = balanceOfWant();
-            console2.log("1 ==== profit", _profit);
-            console2.log("1 ==== loss", _loss);  
+            _liquidWant = balanceOfWant();  
         }   
         if (_loss > _profit) {
             _loss = _loss - _profit;
@@ -158,15 +149,10 @@ contract Strategy is BaseStrategy {
         } else {
             _profit = _profit - _loss;
             _loss = 0;
-        }
-        console2.log("2 ==== profit", _profit);
-        console2.log("2 ==== loss", _loss);  
+        } 
         // Final accounting for P&L and debt payment
         // Case 1 - enough to pay profit (or some) only
-
-        console2.log("profit 1", _profit);
-        if (_liquidWant < _profit) {
-            console2.log("liquidWant smaller than profit", _liquidWant);
+        if (_liquidWant <= _profit) {
             _profit = _liquidWant;
             _debtPayment = 0;
         // Case 2 - enough to pay _profit and _debtOutstanding
@@ -174,9 +160,6 @@ contract Strategy is BaseStrategy {
         } else {
             _debtPayment = Math.min(_liquidWant - _profit, _debtOutstanding);
         }
-        console2.log("3 ==== profit", _profit);
-        console2.log("3 ==== loss", _loss);  
-        console2.log("3 ==== _debtPayment", _debtPayment);
     }
 
     function adjustPosition(uint256 _debtOutstanding) internal override {
@@ -203,12 +186,9 @@ contract Strategy is BaseStrategy {
         _liquidWant = balanceOfWant();
         if (_liquidWant >= _amountNeeded) {
             _liquidatedAmount = _amountNeeded;
-            console2.log("_liquidatedAmount", _liquidatedAmount);
         } else {
             _liquidatedAmount = _liquidWant;
             _loss = _amountNeeded - _liquidWant;
-            console2.log("_liquidatedAmount", _liquidatedAmount);
-            console2.log("_loss", _loss);
         }
     }
 
@@ -277,20 +257,12 @@ contract Strategy is BaseStrategy {
     }
 
     function _removeliquidity(uint256 _wantAmount) internal returns (uint256 _liquidationProfit, uint256 _liquidationLoss) {
-        console2.log("calling _removeliquidity", _wantAmount);
-
-        // Math.min to prevent us from withdrawing more than we have
-        uint256 _lpAmountToRemove = Math.min(((_wantAmount *10**(36-wantDecimals)) / hop.getVirtualPrice()), wantLp.balanceOf(address(this)));
+        uint256 _lpAmountToRemove = Math.min(((_wantAmount *10**(36-wantDecimals)) / hop.getVirtualPrice()), wantLp.balanceOf(address(this))); // Math.min to prevent us from withdrawing more than we have
         uint256 _estimatedTotalAssetsBefore = estimatedTotalAssets();
         uint256 _expectedMinWantAmount = _calculateRemoveLiquidityOneToken(_lpAmountToRemove);
         uint256 _minWantOut = _wantAmount - (_wantAmount * maxSlippage) / MAX_BIPS;
-
-        console2.log("  _estimatedTotalAssetsBefore", _estimatedTotalAssetsBefore);
-        console2.log("  _expectedMinWantAmount", _expectedMinWantAmount);
-        console2.log("  _minWantOut ", _minWantOut );
         // enforcing slippage protection
        if (_expectedMinWantAmount < _minWantOut) {
-            console2.log(" (fail) slippage check!");
             return (0,0);
         }
         _checkAllowance(address(hop), address(wantLp), _lpAmountToRemove); 
