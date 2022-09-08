@@ -114,6 +114,7 @@ contract Strategy is BaseStrategy {
 
     function estimatedTotalAssets() public view override returns (uint256) {
         console2.log ("estimatedTotalAssets / balanceOfWant()", balanceOfWant(), "valueLpToWant()", valueLpToWant());
+        console2.log ("hop.getVirtualPrice()", hop.getVirtualPrice());
         return balanceOfWant() + valueLpToWant();
     }
 
@@ -137,6 +138,7 @@ contract Strategy is BaseStrategy {
         uint256 _liquidWant = balanceOfWant();
 
         uint256 _toFree = _debtOutstanding + _profit;
+        console2.log("_debtOutstanding", _debtOutstanding);
 
         // liquidate some of the Want
         if (_liquidWant < _toFree) {
@@ -147,6 +149,8 @@ contract Strategy is BaseStrategy {
             _loss = _loss + _liquidationLoss;
             _profit = _profit + _liquidationProfit;
             _liquidWant = balanceOfWant();
+            console2.log("1 ==== profit", _profit);
+            console2.log("1 ==== loss", _loss);  
         }   
         if (_loss > _profit) {
             _loss = _loss - _profit;
@@ -155,9 +159,14 @@ contract Strategy is BaseStrategy {
             _profit = _profit - _loss;
             _loss = 0;
         }
+        console2.log("2 ==== profit", _profit);
+        console2.log("2 ==== loss", _loss);  
         // Final accounting for P&L and debt payment
         // Case 1 - enough to pay profit (or some) only
-        if (_liquidWant <= _profit) {
+
+        console2.log("profit 1", _profit);
+        if (_liquidWant < _profit) {
+            console2.log("liquidWant smaller than profit", _liquidWant);
             _profit = _liquidWant;
             _debtPayment = 0;
         // Case 2 - enough to pay _profit and _debtOutstanding
@@ -165,6 +174,9 @@ contract Strategy is BaseStrategy {
         } else {
             _debtPayment = Math.min(_liquidWant - _profit, _debtOutstanding);
         }
+        console2.log("3 ==== profit", _profit);
+        console2.log("3 ==== loss", _loss);  
+        console2.log("3 ==== _debtPayment", _debtPayment);
     }
 
     function adjustPosition(uint256 _debtOutstanding) internal override {
@@ -180,7 +192,6 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _liquidatedAmount, uint256 _loss)
     {
-        console2.log("fct| liquidatePosition");
         
         uint256 _liquidWant = balanceOfWant();
         if (_liquidWant < _amountNeeded) {
@@ -274,15 +285,12 @@ contract Strategy is BaseStrategy {
         uint256 _expectedMinWantAmount = _calculateRemoveLiquidityOneToken(_lpAmountToRemove);
         uint256 _minWantOut = _wantAmount - (_wantAmount * maxSlippage) / MAX_BIPS;
 
-
-
-    
         console2.log("  _estimatedTotalAssetsBefore", _estimatedTotalAssetsBefore);
         console2.log("  _expectedMinWantAmount", _expectedMinWantAmount);
         console2.log("  _minWantOut ", _minWantOut );
         // enforcing slippage protection
        if (_expectedMinWantAmount < _minWantOut) {
-            console2.log("ohhhhh snap!");
+            console2.log(" (fail) slippage check!");
             return (0,0);
         }
         _checkAllowance(address(hop), address(wantLp), _lpAmountToRemove); 

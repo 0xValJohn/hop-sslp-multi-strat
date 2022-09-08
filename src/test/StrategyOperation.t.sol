@@ -20,70 +20,81 @@ contract StrategyOperationsTest is StrategyFixture {
     /// Test Operations
     function testStrategyOperation(uint256 _fuzzAmount) public {
         vm.assume(_fuzzAmount > minFuzzAmt && _fuzzAmount < maxFuzzAmt);
-        
         // logic for multi-want
         for(uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
             Strategy strategy = _assetFixture.strategy;
             IERC20 want = _assetFixture.want;
-
             uint256 _amount = _fuzzAmount;
             uint8 _wantDecimals = IERC20Metadata(address(want)).decimals();
+            string memory _wantSymbol = IERC20Metadata(address(want)).symbol();
             if (_wantDecimals != 18) {
                 uint256 _decimalDifference = 18 - _wantDecimals;
-
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            console2.log("\n ///////////////////////////////////////////////////////////////////////// \nNew test for: ", IERC20Metadata(address(want)).symbol(), "fuzzing with", _amount);
-
-            deal(address(want), user, _amount);
-            uint256 _balanceBefore = want.balanceOf(address(user));
+            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+            }
+            console2.log("\n\n///////////////////\n\nNew test for: ", _wantSymbol, "fuzzing with", _amount/10**_wantDecimals);
             
+            deal(address(want), user, _amount);
+            uint256 balanceBefore = want.balanceOf(address(user));
+            
+            // simulate a balanced pool
+            simulateBalancedPool(_wantSymbol);
+
+            // Deposit to the vault
             vm.prank(user);
             want.approve(address(vault), _amount);
-
             vm.prank(user);
             vault.deposit(_amount);
-
-            skip(1 minutes);
+            skip(1);
             vm.prank(strategist);
-            console2.log(" /test/ calling first harvest");
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
+            skip(3 minutes);
+            // tend
             vm.prank(strategist);
-            console2.log(" /test/ calling first tend");
             strategy.tend();
 
-            vm.prank(user);
-            console2.log(" /test/ user will attempt to withdraw");
-            vault.withdraw(); // TODO: error here, need to troubleshoot
+            // simulate LP fees
+            simulateTransactionFee(_wantSymbol);
 
-            assertRelApproxEq(want.balanceOf(user), _balanceBefore, DELTA);
+            vm.startPrank(user);
+            vault.withdraw(vault.balanceOf(user), user, 600);
+            vm.stopPrank();
+
+            assertRelApproxEq(want.balanceOf(user), balanceBefore, DELTA);
+
         }
     }
 
     function testEmergencyExit(uint256 _fuzzAmount) public {
         vm.assume(_fuzzAmount > minFuzzAmt && _fuzzAmount < maxFuzzAmt);
-
         // logic for multi-want
         for(uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
             Strategy strategy = _assetFixture.strategy;
             IERC20 want = _assetFixture.want;
-
             uint256 _amount = _fuzzAmount;
             uint8 _wantDecimals = IERC20Metadata(address(want)).decimals();
+            string memory _wantSymbol = IERC20Metadata(address(want)).symbol();
             if (_wantDecimals != 18) {
                 uint256 _decimalDifference = 18 - _wantDecimals;
-
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            console2.log("\n New test for: ", IERC20Metadata(address(want)).symbol(), "fuzzing with", _amount);
+            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+            }
+            console2.log("\n\n///////////////////\n\nNew test for: ", _wantSymbol, "fuzzing with", _amount/10**_wantDecimals);
             
             deal(address(want), user, _amount);
+            
+            // simulate a balanced pool
+            simulateBalancedPool(_wantSymbol);
 
             // Deposit to the vault
             vm.prank(user);
@@ -102,12 +113,12 @@ contract StrategyOperationsTest is StrategyFixture {
             vm.prank(strategist);
             strategy.harvest();
             assertLt(strategy.estimatedTotalAssets(), _amount);
+            // todo: reporting of P&L is broken !!
         }
     }
 
     function testProfitableHarvest(uint256 _fuzzAmount) public {
         vm.assume(_fuzzAmount > minFuzzAmt && _fuzzAmount < maxFuzzAmt);
-
         // logic for multi-want
         for(uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
@@ -116,62 +127,53 @@ contract StrategyOperationsTest is StrategyFixture {
             IERC20 want = _assetFixture.want;
             uint256 _amount = _fuzzAmount;
             uint8 _wantDecimals = IERC20Metadata(address(want)).decimals();
+            string memory _wantSymbol = IERC20Metadata(address(want)).symbol();
             if (_wantDecimals != 18) {
                 uint256 _decimalDifference = 18 - _wantDecimals;
-
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            // fuzz amount modifier for WETH
             if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
-                _amount = _amount / 1_000; // e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-
-            console2.log("\n\n///////////////////////////////////////////////////////////////////////////////////// \n\nNew test for: ", IERC20Metadata(address(want)).symbol(), "fuzzing with", _amount);
-
-            // 1- Simulate whale deposit create favourable deposit conditions
-            simulateWhaleAdd(IERC20Metadata(address(want)).symbol(), 0, _amount*10);
-
-            // 2- Deposit to the vault
+            console2.log("\n\n///////////////////\n\nNew test for: ", _wantSymbol, "fuzzing with", _amount/10**_wantDecimals);
+            
             deal(address(want), user, _amount);
+            
+            // simulate a balanced pool
+            simulateBalancedPool(_wantSymbol);
+
+            // Deposit to the vault
             vm.prank(user);
             want.approve(address(vault), _amount);
             vm.prank(user);
             vault.deposit(_amount);
             uint256 _beforePps = vault.pricePerShare();
-
-            // 3- First harvest
+            
+            // 1st harvest
+            skip(1);
+            vm.prank(strategist);
             console2.log("\n first harvest");
+            strategy.harvest();
+            assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
+
+            // simulate LP fees
+            simulateTransactionFee(_wantSymbol);
+
+            // Harvest and check that we have a profit
             skip(1);
             vm.prank(strategist);
+            console2.log("\n second harvest");
             strategy.harvest();
-
-            // 3- First harvest
-            console2.log("\n 2nd harvest");
-            skip(1);
-            vm.prank(strategist);
-            strategy.harvest();
-
-            // 4- Simulate LP fees
-            simulateLpFees(IERC20Metadata(address(want)).symbol(), _amount*100);
-            skip(5 days);
-
-            // 5- Harvest and check that we have a profit
-            console2.log("\n 3rd harvest");
-            skip(1);
-            vm.prank(strategist);
-            strategy.harvest();
-            skip(1);
             console2.log("vault.pricePerShare()", vault.pricePerShare());
             console2.log("_beforePps", _beforePps);
-            // +1 as s
-            assertGt(vault.pricePerShare()+1, _beforePps);
+            assertGt(vault.pricePerShare(), _beforePps);
         }
     }
 
-    // function testLossyHarvest(uint256 _fuzzAmount) public {
-    //     vm.assume(_fuzzAmount > minFuzzAmt && _fuzzAmount < maxFuzzAmt);
-    //     for(uint8 i = 0; i < assetFixtures.length; ++i) {
-    //         AssetFixture memory _assetFixture = assetFixtures[i];
+    // // function testLossyHarvest(uint256 _fuzzAmount) public {
+    // //     vm.assume(_fuzzAmount > minFuzzAmt && _fuzzAmount < maxFuzzAmt);
+    // //     for(uint8 i = 0; i < assetFixtures.length; ++i) {
+    // //         AssetFixture memory _assetFixture = assetFixtures[i];
     //         IVault vault = _assetFixture.vault;
     //         Strategy strategy = _assetFixture.strategy;
     //         IERC20 want = _assetFixture.want;

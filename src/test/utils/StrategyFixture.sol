@@ -216,10 +216,10 @@ contract StrategyFixture is ExtendedTest {
     }    
 
     function _setMaxSlippage() internal {
-        maxSlippage["WETH"] = 30;
-        maxSlippage["USDT"] = 30;
-        maxSlippage["USDC"] = 30;
-        maxSlippage["DAI"] = 30;
+        maxSlippage["WETH"] = 50;
+        maxSlippage["USDT"] = 50;
+        maxSlippage["USDC"] = 50;
+        maxSlippage["DAI"] = 50;
     }
 
     function _setTokenPrices() internal {
@@ -229,43 +229,55 @@ contract StrategyFixture is ExtendedTest {
         tokenPrices["DAI"] = 1;
     }
 
-    function simulateWhaleAdd(string memory _tokenSymbol, uint256 _wantTokenToLP, uint256 _hTokenToLP) public {
-        console2.log("prank whale // adding liq (_want, _hToken)", _wantTokenToLP, _hTokenToLP);
-        
+    function simulateBalancedPool(string memory _tokenSymbol) public {
         hopcontract = ISwap(address(hop[_tokenSymbol]));
         IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
         IERC20 _want = IERC20(address(tokenAddrs[_tokenSymbol]));
+        uint256 _wantInitialBalance = _want.balanceOf(address(hopcontract));
+        uint256 _hTokenInitialBalance = _hToken.balanceOf(address(hopcontract));
 
-        deal(address(_hToken), whale, _hTokenToLP);
-        deal(address(_want), whale, _wantTokenToLP);
+        if (_wantInitialBalance > _hTokenInitialBalance) {
+            uint256 _hTokenToLP = _wantInitialBalance - _hTokenInitialBalance;
+            deal(address(_hToken), whale, _hTokenToLP);
+            vm.startPrank(whale);
+            _hToken.approve(address(hopcontract), _hTokenToLP);
+            uint256[] memory _amountsToAdd = new uint256[](2); 
+            _amountsToAdd[1] = _hTokenToLP; 
+            hopcontract.addLiquidity(_amountsToAdd, 0, block.timestamp);
+            vm.stopPrank();
+            }
+        else {
+            uint256 _wantTokenToLP = _hTokenInitialBalance - _wantInitialBalance;
+            deal(address(_want), whale, _wantTokenToLP);
+            vm.startPrank(whale);
+            _want.approve(address(hopcontract), _wantTokenToLP);
+            uint256[] memory _amountsToAdd = new uint256[](2); 
+            _amountsToAdd[0] = _wantTokenToLP;
+            hopcontract.addLiquidity(_amountsToAdd, 0, block.timestamp);
+            vm.stopPrank();
+            }
+        console2.log(" // simulating balanced pool (want, hToken)", _want.balanceOf(address(hopcontract)), _hToken.balanceOf(address(hopcontract)));
 
-        vm.startPrank(whale);
-        _hToken.approve(address(hopcontract), _hTokenToLP);
-        _want.approve(address(hopcontract), _wantTokenToLP);
-        uint256[] memory _amountsToAdd = new uint256[](2); 
-        _amountsToAdd[0] = _wantTokenToLP;
-        _amountsToAdd[1] = _hTokenToLP;      
-        hopcontract.addLiquidity(_amountsToAdd, 0, block.timestamp);
-        vm.stopPrank();
     }
 
-
-    // here we simulate swap to generate fees 
-    function simulateLpFees(string memory _tokenSymbol, uint256 _amount) public {
-        console2.log("prank whale // simulating swap to generate fees");
+    function simulateTransactionFee(string memory _tokenSymbol) public {
         IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
         IERC20 _want = IERC20(address(tokenAddrs[_tokenSymbol]));
         hopcontract = ISwap(address(hop[_tokenSymbol]));
-        vm.startPrank(whale);
-        
-        deal(address(_want), whale, _amount);
-        _want.approve(address(hopcontract), _amount);
-        hopcontract.swap(0, 1, _amount, 0, block.timestamp); // swap hToken to want
-        
-        deal(address(_hToken), whale, _amount);
-        _hToken.approve(address(hopcontract), _amount);
-        hopcontract.swap(1, 0, _amount, 0, block.timestamp); // swap want back to hToken
-        
-        vm.stopPrank();
+        uint256 _wantInitialBalance = _want.balanceOf(address(hopcontract));
+        uint256 _hTokenInitialBalance = _hToken.balanceOf(address(hopcontract));
+        for (uint i = 0; i < 5; i++) { // generate fees for volume equal to total pool * 10
+            vm.startPrank(whale);
+            deal(address(_want), whale, _hTokenInitialBalance);
+            _want.approve(address(hopcontract), _hTokenInitialBalance);
+            hopcontract.swap(0, 1, _hTokenInitialBalance, 0, block.timestamp); // swap hToken to want
+            deal(address(_hToken), whale, _wantInitialBalance);
+            _hToken.approve(address(hopcontract), _wantInitialBalance);
+            hopcontract.swap(1, 0, _wantInitialBalance, 0, block.timestamp); // swap want back to hToken
+            vm.stopPrank();
+        }
+        simulateBalancedPool(_tokenSymbol); // get the pool back in line
+        console2.log(" // simulating LP fees (volume = pool 10x)");
     }
+
 }
