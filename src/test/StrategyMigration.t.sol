@@ -15,18 +15,21 @@ contract StrategyMigrationTest is StrategyFixture {
 
     function testMigration(uint256 _fuzzAmount) public {
         vm.assume(_fuzzAmount > minFuzzAmt && _fuzzAmount < maxFuzzAmt);
+        // logic for multi-want
         for(uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
             Strategy strategy = _assetFixture.strategy;
             IERC20 want = _assetFixture.want;
-
             uint256 _amount = _fuzzAmount;
             uint8 _wantDecimals = IERC20Metadata(address(want)).decimals();
+            string memory _wantSymbol = IERC20Metadata(address(want)).symbol();
             if (_wantDecimals != 18) {
                 uint256 _decimalDifference = 18 - _wantDecimals;
-
                 _amount = _amount / (10 ** _decimalDifference);
+            }
+            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
 
             deal(address(want), user, _amount);

@@ -216,10 +216,10 @@ contract StrategyFixture is ExtendedTest {
     }    
 
     function _setMaxSlippage() internal {
-        maxSlippage["WETH"] = 50;
-        maxSlippage["USDT"] = 50;
-        maxSlippage["USDC"] = 50;
-        maxSlippage["DAI"] = 50;
+        maxSlippage["WETH"] = 30;
+        maxSlippage["USDT"] = 30;
+        maxSlippage["USDC"] = 30;
+        maxSlippage["DAI"] = 30;
     }
 
     function _setTokenPrices() internal {
@@ -229,6 +229,7 @@ contract StrategyFixture is ExtendedTest {
         tokenPrices["DAI"] = 1;
     }
 
+    // simulating balanced pool (1:1)
     function simulateBalancedPool(string memory _tokenSymbol) public {
         hopcontract = ISwap(address(hop[_tokenSymbol]));
         IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
@@ -256,10 +257,9 @@ contract StrategyFixture is ExtendedTest {
             hopcontract.addLiquidity(_amountsToAdd, 0, block.timestamp);
             vm.stopPrank();
             }
-        console2.log(" // simulating balanced pool (want, hToken)", _want.balanceOf(address(hopcontract)), _hToken.balanceOf(address(hopcontract)));
-
     }
 
+    // simulating LP fees (volume = pool 10x)
     function simulateTransactionFee(string memory _tokenSymbol) public {
         IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
         IERC20 _want = IERC20(address(tokenAddrs[_tokenSymbol]));
@@ -277,7 +277,6 @@ contract StrategyFixture is ExtendedTest {
             vm.stopPrank();
         }
         simulateBalancedPool(_tokenSymbol); // get the pool back in line
-        console2.log(" // simulating LP fees (volume = pool 10x)");
     }
 
 }

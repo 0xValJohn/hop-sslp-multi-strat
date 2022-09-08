@@ -7,8 +7,6 @@ import {Strategy} from "../Strategy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@yearnvaults/contracts/yToken.sol";
 
-import "forge-std/console2.sol";
-
 contract StrategyShutdownTest is StrategyFixture {
     function setUp() public override {
         super.setUp();
@@ -16,7 +14,6 @@ contract StrategyShutdownTest is StrategyFixture {
 
     function testVaultShutdownCanWithdraw(uint256 _fuzzAmount) public {
         vm.assume(_fuzzAmount > minFuzzAmt && _fuzzAmount < maxFuzzAmt);
-
         // logic for multi-want
         for(uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
@@ -25,18 +22,19 @@ contract StrategyShutdownTest is StrategyFixture {
             IERC20 want = _assetFixture.want;
             uint256 _amount = _fuzzAmount;
             uint8 _wantDecimals = IERC20Metadata(address(want)).decimals();
+            string memory _wantSymbol = IERC20Metadata(address(want)).symbol();
             if (_wantDecimals != 18) {
                 uint256 _decimalDifference = 18 - _wantDecimals;
-
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            // fuzz amount modifier for WETH
             if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
-                _amount = _amount / 1_000; // e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-
-            console2.log("\n\n///////////////////\n\nNew test for: ", IERC20Metadata(address(want)).symbol(), "fuzzing with", _amount);
+            
             deal(address(want), user, _amount);
+
+            // simulate a balanced pool
+            simulateBalancedPool(_wantSymbol);
 
             // Deposit to the vault
             vm.prank(user);
@@ -51,13 +49,17 @@ contract StrategyShutdownTest is StrategyFixture {
                 want.transfer(address(0), bal);
             }
 
-            // Harvest 1: Send funds through the strategy
-            skip(7 hours);
+            // 1st harvest
+            skip(60);
             vm.prank(strategist);
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
+            // simulate LP fees
+            simulateTransactionFee(_wantSymbol);
+
             // Set Emergency
+            skip(60);
             vm.prank(gov);
             vault.setEmergencyShutdown(true);
 
@@ -71,20 +73,23 @@ contract StrategyShutdownTest is StrategyFixture {
 
     function testBasicShutdown(uint256 _fuzzAmount) public {
         vm.assume(_fuzzAmount > minFuzzAmt && _fuzzAmount < maxFuzzAmt);
+        // logic for multi-want
         for(uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
             Strategy strategy = _assetFixture.strategy;
             IERC20 want = _assetFixture.want;
-
             uint256 _amount = _fuzzAmount;
             uint8 _wantDecimals = IERC20Metadata(address(want)).decimals();
+            string memory _wantSymbol = IERC20Metadata(address(want)).symbol();
             if (_wantDecimals != 18) {
                 uint256 _decimalDifference = 18 - _wantDecimals;
-
                 _amount = _amount / (10 ** _decimalDifference);
             }
-
+            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+            }
+            
             deal(address(want), user, _amount);
 
             // Deposit to the vault
