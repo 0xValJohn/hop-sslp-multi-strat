@@ -16,7 +16,7 @@ contract Strategy is BaseStrategy {
     
     IERC20 public wantLp;
     ISwap public hop;
-    uint256 internal make tant MAX_BIPS = 10_000;
+    uint256 internal constant MAX_BIPS = 10_000;
     uint256 internal wantDecimals;
     uint256 public maxSlippage;  
 
@@ -230,6 +230,7 @@ contract Strategy is BaseStrategy {
         external
         onlyVaultManagers
     {
+        require(_maxSlippage < 10_000);
         maxSlippage = _maxSlippage;
     }
 
@@ -241,30 +242,20 @@ contract Strategy is BaseStrategy {
     function _addLiquidity(uint256 _wantAmount) internal {
         uint256[] memory _amountsToAdd = new uint256[](2); 
         _amountsToAdd[0] = _wantAmount;
-        uint256 _wantInLpToken = _wantAmount * wantDecimals / hop.getVirtualPrice();
         // enforcing slippage protection
-        uint256 _expectedLpToMint = hop.calculateTokenAmount(address(this), _amountsToAdd, true);
-        uint256 _mintLpToMint = _wantInLpToken - (_wantInLpToken  * maxSlippage) / MAX_BIPS;
-        if (_expectedLpToMint < _mintLpToMint) {
-            return; // we revert if slippage test fails
-        }
+        uint256 _minLpToMint = wantToLpToken(_wantAmount) * (MAX_BIPS - maxSlippage) / maxSlippage;
         _checkAllowance(address(hop), address(want), _wantAmount); 
         /** 
         * @param amounts the amounts of each token to add, in their native precision
         * @param minToMint the minimum LP tokens adding this amount of liquidity
         */
-        hop.addLiquidity(_amountsToAdd, _mintLpToMint, block.timestamp);
+        hop.addLiquidity(_amountsToAdd, _minLpToMint, block.timestamp);
     }
 
     function _removeliquidity(uint256 _wantAmount) internal returns (uint256 _liquidationProfit, uint256 _liquidationLoss) {
-        uint256 _lpAmountToRemove = Math.min(((_wantAmount *10**(36-wantDecimals)) / hop.getVirtualPrice()), wantLp.balanceOf(address(this))); // Math.min to prevent us from withdrawing more than we have
+        uint256 _lpAmountToRemove = Math.min(wantToLpToken(_wantAmount), wantLp.balanceOf(address(this))); // Math.min to prevent us from withdrawing more than we have
         uint256 _estimatedTotalAssetsBefore = estimatedTotalAssets();
-        uint256 _expectedMinWantAmount = _calculateRemoveLiquidityOneToken(_lpAmountToRemove);
         uint256 _minWantOut = _wantAmount - (_wantAmount * maxSlippage) / MAX_BIPS;
-        // enforcing slippage protection
-       if (_expectedMinWantAmount < _minWantOut) {
-            return (0,0);
-        }
         _checkAllowance(address(hop), address(wantLp), _lpAmountToRemove); 
         /**
         * @param tokenAmount the amount of the LP token you want to receive
@@ -291,12 +282,16 @@ contract Strategy is BaseStrategy {
     function valueLpToWant() public view returns (uint256) {
         uint256 _lpTokenAmount = wantLp.balanceOf(address(this));
         // _lpTokenAmount always has 18 decimals, but sometimes we need to convert back to want with 6 decimals
-        uint256 _valueLpToWant = (_lpTokenAmount * hop.getVirtualPrice())/(1e1**(36-wantDecimals));      
+        uint256 _valueLpToWant = (_lpTokenAmount * hop.getVirtualPrice())/(10**(36-wantDecimals));      
         return _valueLpToWant;
     }
 
     function balanceOfWant() public view returns (uint256) {
         return want.balanceOf(address(this));
+    }
+
+    function wantToLpToken(uint _wantAmount)  public view returns (uint _amount){
+        return _wantAmount*10**(36-wantDecimals) / hop.getVirtualPrice();
     }
 
     function _checkAllowance(
