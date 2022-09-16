@@ -187,33 +187,66 @@ contract StrategyFixture is ExtendedTest {
         return (address(_vault), address(_strategy));
     }
 
+    // For Arbitrum ////////////////////////////////////////////////////
+    // function _setTokenAddrs() internal {
+    //     tokenAddrs["WETH"] = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+    //     tokenAddrs["USDT"] = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
+    //     tokenAddrs["USDC"] = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
+    //     tokenAddrs["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+    // }
+
+    // function _setWantLp() internal {
+    //     wantLp["WETH"] = 0x59745774Ed5EfF903e615F5A2282Cae03484985a;
+    //     wantLp["USDT"] = 0xCe3B19D820CB8B9ae370E423B0a329c4314335fE;
+    //     wantLp["USDC"] = 0xB67c014FA700E69681a673876eb8BAFAA36BFf71;
+    //     wantLp["DAI"] = 0x68f5d998F00bB2460511021741D098c05721d8fF;
+    // }
+
+    // function _setHop() internal {
+    //     hop["WETH"] = 0x652d27c0F72771Ce5C76fd400edD61B406Ac6D97;
+    //     hop["USDT"] = 0x18f7402B673Ba6Fb5EA4B95768aABb8aaD7ef18a;
+    //     hop["USDC"] = 0x10541b07d8Ad2647Dc6cD67abd4c03575dade261;
+    //     hop["DAI"] = 0xa5A33aB9063395A90CCbEa2D86a62EcCf27B5742;
+    // }
+
+    // function _setHToken() internal {
+    //     hToken["WETH"] = 0xDa7c0de432a9346bB6e96aC74e3B61A36d8a77eB;
+    //     hToken["USDT"] = 0x12e59C59D282D2C00f3166915BED6DC2F5e2B5C7;
+    //     hToken["USDC"] = 0x0ce6c85cF43553DE10FC56cecA0aef6Ff0DD444d;
+    //     hToken["DAI"] = 0x46ae9BaB8CEA96610807a275EBD36f8e916b5C61;
+    // }    
+    ///////////////////////////////////////////////////////////////////
+
+    // For Optimism ///////////////////////////////////////////////////
     function _setTokenAddrs() internal {
-        tokenAddrs["WETH"] = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
-        tokenAddrs["USDT"] = 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9;
-        tokenAddrs["USDC"] = 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
+        tokenAddrs["WETH"] = 0x4200000000000000000000000000000000000006;
+        tokenAddrs["USDT"] = 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58;
+        tokenAddrs["USDC"] = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
         tokenAddrs["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
     }
 
     function _setWantLp() internal {
-        wantLp["WETH"] = 0x59745774Ed5EfF903e615F5A2282Cae03484985a;
-        wantLp["USDT"] = 0xCe3B19D820CB8B9ae370E423B0a329c4314335fE;
-        wantLp["USDC"] = 0xB67c014FA700E69681a673876eb8BAFAA36BFf71;
-        wantLp["DAI"] = 0x68f5d998F00bB2460511021741D098c05721d8fF;
+        wantLp["WETH"] = 0x5C2048094bAaDe483D0b1DA85c3Da6200A88a849;
+        wantLp["USDT"] = 0xF753A50fc755c6622BBCAa0f59F0522f264F006e;
+        wantLp["USDC"] = 0x2e17b8193566345a2Dd467183526dEdc42d2d5A8;
+        wantLp["DAI"] = 0x22D63A26c730d49e5Eab461E4f5De1D8BdF89C92;
     }
 
     function _setHop() internal {
-        hop["WETH"] = 0x652d27c0F72771Ce5C76fd400edD61B406Ac6D97;
-        hop["USDT"] = 0x18f7402B673Ba6Fb5EA4B95768aABb8aaD7ef18a;
-        hop["USDC"] = 0x10541b07d8Ad2647Dc6cD67abd4c03575dade261;
-        hop["DAI"] = 0xa5A33aB9063395A90CCbEa2D86a62EcCf27B5742;
+        hop["WETH"] = 0xaa30D6bba6285d0585722e2440Ff89E23EF68864;
+        hop["USDT"] = 0xeC4B41Af04cF917b54AEb6Df58c0f8D78895b5Ef;
+        hop["USDC"] = 0x3c0FFAca566fCcfD9Cc95139FEF6CBA143795963;
+        hop["DAI"] = 0xF181eD90D6CfaC84B8073FdEA6D34Aa744B41810;
     }
 
     function _setHToken() internal {
-        hToken["WETH"] = 0xDa7c0de432a9346bB6e96aC74e3B61A36d8a77eB;
-        hToken["USDT"] = 0x12e59C59D282D2C00f3166915BED6DC2F5e2B5C7;
-        hToken["USDC"] = 0x0ce6c85cF43553DE10FC56cecA0aef6Ff0DD444d;
-        hToken["DAI"] = 0x46ae9BaB8CEA96610807a275EBD36f8e916b5C61;
+        hToken["WETH"] = 0xE38faf9040c7F09958c638bBDB977083722c5156;
+        hToken["USDT"] = 0x2057C8ECB70Afd7Bee667d76B4CD373A325b1a20;
+        hToken["USDC"] = 0x25D8039bB044dC227f741a9e381CA4cEAE2E6aE8;
+        hToken["DAI"] = 0x56900d66D74Cb14E3c86895789901C9135c95b16;
     }    
+
+    ///////////////////////////////////////////////////////////////////
 
     function _setMaxSlippage() internal {
         maxSlippage["WETH"] = 30;
