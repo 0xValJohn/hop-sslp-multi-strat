@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.12;
-
+import "forge-std/console2.sol"; // TODO: remove
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IVault} from "../interfaces/Vault.sol";
 import {Strategy} from "../Strategy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@yearnvaults/contracts/yToken.sol";
-
 contract StrategyShutdownTest is StrategyFixture {
     function setUp() public override {
         super.setUp();
@@ -27,7 +26,7 @@ contract StrategyShutdownTest is StrategyFixture {
                 uint256 _decimalDifference = 18 - _wantDecimals;
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
             
@@ -41,6 +40,7 @@ contract StrategyShutdownTest is StrategyFixture {
             want.approve(address(vault), _amount);
             vm.prank(user);
             vault.deposit(_amount);
+            console2.log("_amount", _amount);
             assertRelApproxEq(want.balanceOf(address(vault)), _amount, DELTA);
 
             uint256 bal = want.balanceOf(user);
@@ -58,11 +58,19 @@ contract StrategyShutdownTest is StrategyFixture {
             // simulate LP fees
             simulateTransactionFee(_wantSymbol);
 
+            // 2nd harvest
+            skip(60);
+            vm.prank(strategist);
+            strategy.harvest();
+            assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
+            skip(60);
+            console2.log("vault.pricePerShare()", vault.pricePerShare());
             // Set Emergency
             skip(60);
             vm.prank(gov);
             vault.setEmergencyShutdown(true);
-
+           
+            console2.log("\n ======= User withdraw ========");
             // Withdraw (does it work, do you get what you expect)
             vm.prank(user);
             vault.withdraw();
@@ -86,7 +94,7 @@ contract StrategyShutdownTest is StrategyFixture {
                 uint256 _decimalDifference = 18 - _wantDecimals;
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
             
