@@ -31,7 +31,7 @@ contract StrategyOperationsTest is StrategyFixture {
                 uint256 _decimalDifference = 18 - _wantDecimals;
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
 
@@ -83,7 +83,7 @@ contract StrategyOperationsTest is StrategyFixture {
                 uint256 _decimalDifference = 18 - _wantDecimals;
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
 
@@ -127,7 +127,7 @@ contract StrategyOperationsTest is StrategyFixture {
                 uint256 _decimalDifference = 18 - _wantDecimals;
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
 
@@ -176,7 +176,7 @@ contract StrategyOperationsTest is StrategyFixture {
                 uint256 _decimalDifference = 18 - _wantDecimals;
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
 
@@ -226,7 +226,7 @@ contract StrategyOperationsTest is StrategyFixture {
                 uint256 _decimalDifference = 18 - _wantDecimals;
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
 
@@ -238,7 +238,6 @@ contract StrategyOperationsTest is StrategyFixture {
             assertEq(address(want), address(strategy.want()));
             assertGt(want.balanceOf(address(strategy)), 0);
 
-            
             vm.prank(gov);
             vm.expectRevert("!want");
             strategy.sweep(address(want));
@@ -254,20 +253,22 @@ contract StrategyOperationsTest is StrategyFixture {
             // vm.expectRevert("!protected");
             // strategy.sweep(strategy.protectedToken());
 
-            uint256 beforeBalance = weth.balanceOf(gov);
-            uint256 wethAmount = 1 ether;
-            deal(address(weth), user, wethAmount);
-            vm.prank(user);
-            weth.transfer(address(strategy), wethAmount);
-            assertNeq(address(weth), address(strategy.want()));
-            assertEq(weth.balanceOf(user), 0);
-            vm.prank(gov);
-            strategy.sweep(address(weth));
-            assertRelApproxEq(
-                weth.balanceOf(gov),
-                wethAmount + beforeBalance,
-                DELTA
-            );
+            // not applicable as we have a strat for weth
+            
+            // uint256 beforeBalance = weth.balanceOf(gov);
+            // uint256 wethAmount = 1 ether;
+            // deal(address(weth), user, wethAmount);
+            // vm.prank(user);
+            // weth.transfer(address(strategy), wethAmount);
+            // assertNeq(address(weth), address(strategy.want()));
+            // assertEq(weth.balanceOf(user), 0);
+            // vm.prank(gov);
+            // strategy.sweep(address(weth));
+            // assertRelApproxEq(
+            //     weth.balanceOf(gov),
+            //     wethAmount + beforeBalance,
+            //     DELTA
+            // );
         }
     }
 
@@ -286,7 +287,7 @@ contract StrategyOperationsTest is StrategyFixture {
                 uint256 _decimalDifference = 18 - _wantDecimals;
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
 

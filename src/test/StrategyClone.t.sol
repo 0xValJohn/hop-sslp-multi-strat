@@ -27,7 +27,7 @@ contract StrategyCloneTest is StrategyFixture {
                 uint256 _decimalDifference = 18 - _wantDecimals;
                 _amount = _amount / (10 ** _decimalDifference);
             }
-            if (address(_assetFixture.want) == 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1) {
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
 

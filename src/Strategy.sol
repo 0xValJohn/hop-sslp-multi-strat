@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.12;
 pragma experimental ABIEncoderV2;
-
+import "forge-std/console2.sol"; // TODO: remove
 import {BaseStrategy, StrategyParams} from "@yearnvaults/contracts/BaseStrategy.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -119,6 +119,10 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _profit, uint256 _loss, uint256 _debtPayment)
     {
+        console2.log("\n ============== Harvest =============");
+        console2.log("estimatedTotalAssets()", estimatedTotalAssets()); // TODO: to remove
+        console2.log("Lp token",  wantLp.balanceOf(address(this)));
+        console2.log("Virtual price", hop.getVirtualPrice());
         uint256 _totalAssets = estimatedTotalAssets();
         uint256 _totalDebt = vault.strategies(address(this)).totalDebt;
         if (_totalAssets >= _totalDebt) {
@@ -129,7 +133,7 @@ contract Strategy is BaseStrategy {
             _profit = 0;
         }
         _debtPayment = _debtOutstanding;
-
+        console2.log("_debtOutstanding", _debtOutstanding);
         // free up _debtOutstanding + our profit, and make any necessary adjustments to the accounting.
         uint256 _liquidWant = balanceOfWant();
         uint256 _toFree = _debtOutstanding + _profit;
@@ -160,6 +164,8 @@ contract Strategy is BaseStrategy {
         } else {
             _debtPayment = Math.min(_liquidWant - _profit, _debtOutstanding);
         }
+        console2.log("_debtPayment", _debtPayment);
+        console2.log("P&L", _profit, _loss);
     }
 
     function adjustPosition(uint256 _debtOutstanding) internal override {
@@ -175,7 +181,7 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _liquidatedAmount, uint256 _loss)
     {
-        
+        console2.log("liquidate position", _amountNeeded);
         uint256 _liquidWant = balanceOfWant();
         if (_liquidWant < _amountNeeded) {
             _removeliquidity(_amountNeeded - _liquidWant);
@@ -200,9 +206,6 @@ contract Strategy is BaseStrategy {
     }
 
     function prepareMigration(address _newStrategy) internal override {
-        _checkAllowance(_newStrategy, address(want), want.balanceOf(address(this)));
-        want.transfer(_newStrategy, balanceOfWant());
-        _checkAllowance(_newStrategy, address(wantLp), wantLp.balanceOf(address(this)));
         wantLp.transfer(_newStrategy, wantLp.balanceOf(address(this)));
     }
 
@@ -242,20 +245,20 @@ contract Strategy is BaseStrategy {
     function _addLiquidity(uint256 _wantAmount) internal {
         uint256[] memory _amountsToAdd = new uint256[](2); 
         _amountsToAdd[0] = _wantAmount;
-        // enforcing slippage protection
-        uint256 _minLpToMint = wantToLpToken(_wantAmount) * (MAX_BIPS - maxSlippage) / maxSlippage;
+        uint256 _minLpToMint = (wantToLpToken(_wantAmount) * (MAX_BIPS - maxSlippage) / MAX_BIPS);
         _checkAllowance(address(hop), address(want), _wantAmount); 
         /** 
         * @param amounts the amounts of each token to add, in their native precision
         * @param minToMint the minimum LP tokens adding this amount of liquidity
         */
         hop.addLiquidity(_amountsToAdd, _minLpToMint, block.timestamp);
+        console2.log("-- hop.addLiquidity", _amountsToAdd[0], _minLpToMint); // TODO: to remove
     }
 
     function _removeliquidity(uint256 _wantAmount) internal returns (uint256 _liquidationProfit, uint256 _liquidationLoss) {
         uint256 _lpAmountToRemove = Math.min(wantToLpToken(_wantAmount), wantLp.balanceOf(address(this))); // Math.min to prevent us from withdrawing more than we have
         uint256 _estimatedTotalAssetsBefore = estimatedTotalAssets();
-        uint256 _minWantOut = _wantAmount - (_wantAmount * maxSlippage) / MAX_BIPS;
+        uint256 _minWantOut = (_wantAmount * (MAX_BIPS - maxSlippage) / MAX_BIPS) / (10**(18-wantDecimals));       
         _checkAllowance(address(hop), address(wantLp), _lpAmountToRemove); 
         /**
         * @param tokenAmount the amount of the LP token you want to receive
@@ -263,7 +266,11 @@ contract Strategy is BaseStrategy {
         * @param minAmount the minimum amount to withdraw, otherwise revert
         */
         hop.removeLiquidityOneToken(_lpAmountToRemove, 0, _minWantOut, block.timestamp);
+        console2.log("-- hop.removeLiquidityOneToken",_lpAmountToRemove, _minWantOut);        
         uint256 _estimatedTotalAssetsAfter = estimatedTotalAssets();
+        console2.log("estimatedTotalAssets()", estimatedTotalAssets()); // TODO: to remove
+        console2.log("want.balanceOf", want.balanceOf(address(this)));  // TODO: to remove
+        console2.log("wantLp.balanceOf", wantLp.balanceOf(address(this)));
         // depending on the reserves balances, there will be a positive or negative price impact
         if (_estimatedTotalAssetsAfter >= _estimatedTotalAssetsBefore) {
             // remove liq resulted in a profit
@@ -291,6 +298,7 @@ contract Strategy is BaseStrategy {
     }
 
     function wantToLpToken(uint _wantAmount)  public view returns (uint _amount){
+        // lp token always has 18 decimals
         return _wantAmount*10**(36-wantDecimals) / hop.getVirtualPrice();
     }
 

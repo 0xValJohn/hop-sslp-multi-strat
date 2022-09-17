@@ -9,8 +9,6 @@ import {Vm} from "forge-std/Vm.sol";
 import {IVault} from "../../interfaces/Vault.sol";
 import "../../interfaces/Hop/ISwap.sol";
 
-import "forge-std/console2.sol";
-
 // NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../../Strategy.sol";
 
@@ -49,9 +47,9 @@ contract StrategyFixture is ExtendedTest {
     address public strategist = address(6);
     address public keeper = address(7);
 
-    uint256 public minFuzzAmt = 1000 ether; // 1_000 
+    uint256 public minFuzzAmt = 1_000 ether;
     // @dev maximum amount of want tokens deposited based on @maxDollarNotional
-    uint256 public maxFuzzAmt = 500_000 ether; // 500k
+    uint256 public maxFuzzAmt = 1_000_000 ether; // keeping in mind the WETH mod --> 100 WETH --> 0.1 WETH
     // Used for integer approximation
     uint256 public constant DELTA = 1; // being lax here
 
@@ -249,14 +247,14 @@ contract StrategyFixture is ExtendedTest {
     ///////////////////////////////////////////////////////////////////
 
     function _setMaxSlippage() internal {
-        maxSlippage["WETH"] = 30;
-        maxSlippage["USDT"] = 30;
-        maxSlippage["USDC"] = 30;
-        maxSlippage["DAI"] = 30;
+        maxSlippage["WETH"] = 100;
+        maxSlippage["USDT"] = 100;
+        maxSlippage["USDC"] = 100;
+        maxSlippage["DAI"] = 100;
     }
 
     function _setTokenPrices() internal {
-        tokenPrices["WETH"] = 1_750;
+        tokenPrices["WETH"] = 1_500;
         tokenPrices["USDT"] = 1;
         tokenPrices["USDC"] = 1;
         tokenPrices["DAI"] = 1;
@@ -299,7 +297,7 @@ contract StrategyFixture is ExtendedTest {
         hopcontract = ISwap(address(hop[_tokenSymbol]));
         uint256 _wantInitialBalance = _want.balanceOf(address(hopcontract));
         uint256 _hTokenInitialBalance = _hToken.balanceOf(address(hopcontract));
-        for (uint i = 0; i < 5; i++) { // generate fees for volume equal to total pool * 10
+        for (uint i = 0; i < 10; i++) { // generate fees for volume equal to total pool * 2 (back and forth) * x
             vm.startPrank(whale);
             deal(address(_want), whale, _hTokenInitialBalance);
             _want.approve(address(hopcontract), _hTokenInitialBalance);
