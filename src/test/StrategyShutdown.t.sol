@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.12;
-import "forge-std/console2.sol"; // TODO: remove
+
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IVault} from "../interfaces/Vault.sol";
 import {Strategy} from "../Strategy.sol";
@@ -40,7 +40,7 @@ contract StrategyShutdownTest is StrategyFixture {
             want.approve(address(vault), _amount);
             vm.prank(user);
             vault.deposit(_amount);
-            console2.log("_amount", _amount);
+
             assertRelApproxEq(want.balanceOf(address(vault)), _amount, DELTA);
 
             uint256 bal = want.balanceOf(user);
@@ -64,18 +64,21 @@ contract StrategyShutdownTest is StrategyFixture {
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
             skip(60);
-            console2.log("vault.pricePerShare()", vault.pricePerShare());
+            
+            // simulate favorable withdraw conditions
+            simulateWantDeposit(_wantSymbol);
+
             // Set Emergency
             skip(60);
             vm.prank(gov);
             vault.setEmergencyShutdown(true);
-           
-            console2.log("\n ======= User withdraw ========");
+
             // Withdraw (does it work, do you get what you expect)
             vm.prank(user);
             vault.withdraw();
 
             assertRelApproxEq(want.balanceOf(user), _amount, DELTA);
+ 
         }
     }
 

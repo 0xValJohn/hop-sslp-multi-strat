@@ -62,13 +62,16 @@ contract StrategyCloneTest is StrategyFixture {
             // simulate LP fees
             simulateTransactionFee(_wantSymbol);
 
-            skip(3 minutes);
+            skip(60);
             vm.prank(strategist);
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
+            // simulate favorable withdraw conditions
+            simulateWantDeposit(_wantSymbol);
+
             vm.prank(strategist);
-            skip(1);
+            skip(60);
             strategy.tend();
 
             vm.prank(user);
