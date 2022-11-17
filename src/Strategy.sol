@@ -1,11 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0
+
 pragma solidity ^0.8.12;
 pragma experimental ABIEncoderV2;
+
+// Core libraries
 import {BaseStrategy, StrategyParams} from "@yearnvaults/contracts/BaseStrategy.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+
 import "./interfaces/Hop/ISwap.sol";
+import "./interfaces/Hop/IStakingRewards.sol";
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
@@ -13,31 +18,46 @@ contract Strategy is BaseStrategy {
 
 // ---------------------- STATE VARIABLES ----------------------
     
-    IERC20 public wantLp;
-    ISwap public hop;
+    uint256 public maxSlippage;
+    IERC20 public lpToken;
+    IERC20 public emissionToken;
+    ISwap public lpContract;
+    IStakingRewards public lpStaker;
+
     uint256 internal constant MAX_BIPS = 10_000;
     uint256 internal wantDecimals;
-    uint256 public maxSlippage;  
-
+    
 // ---------------------- CONSTRUCTOR ----------------------
 
     constructor(
         address _vault,
         uint256 _maxSlippage,
-        address _wantLp,
-        address _hop
+        address _lpToken,
+        address _emissionToken,      
+        address _lpContract,
+        address _lpStaker
         ) public BaseStrategy(_vault) {
-         _initializeStrat(_maxSlippage, _wantLp, _hop);
+         _initializeStrat(
+            _maxSlippage,
+            _lpToken,
+            _emissionToken,
+            _lpContract,
+            _lpStaker
+            );
     }
 
     function _initializeStrat(
         uint256 _maxSlippage,
-        address _wantLp,
-        address _hop
+        address _lpToken,
+        address _emissionToken,
+        address _lpContract,
+        address _lpStaker
         ) internal {
         maxSlippage = _maxSlippage;
-        wantLp = IERC20(_wantLp);
-        hop = ISwap(_hop);
+        lpToken = IERC20(_lpToken);
+        emissionToken = IERC20(_emissionToken);
+        lpContract = lpContract(_lpContract);
+        lpStaker = lpStaker(_lpStaker);
         wantDecimals = IERC20Metadata(address(want)).decimals();
     }
 
@@ -51,11 +71,24 @@ contract Strategy is BaseStrategy {
         address _rewards,
         address _keeper,
         uint256 _maxSlippage,
-        address _wantLp,
-        address _hop
+        address _lpToken,
+        address _emissionToken,      
+        address _lpContract,
+        address _lpStaker
     ) external { 
-        _initialize(_vault, _strategist, _rewards, _keeper);
-        _initializeStrat(_maxSlippage, _wantLp, _hop);
+        _initialize(
+            _vault,
+            _strategist,
+            _rewards,
+            _keeper
+            );
+        _initializeStrat(
+            _maxSlippage,
+            _lpToken,
+            _emissionToken,
+            _lpContract,
+            _lpStaker
+            );
     }
 
     function cloneHop(
@@ -64,12 +97,13 @@ contract Strategy is BaseStrategy {
         address _rewards,
         address _keeper,
         uint256 _maxSlippage,
-        address _wantLp,
-        address _hop
+        address _lpToken,
+        address _emissionToken,      
+        address _lpContract,
+        address _lpStaker
         ) external returns (address newStrategy) {
             require(isOriginal, "!clone");
             bytes20 addressBytes = bytes20(address(this));
-
             assembly {
                 // EIP-1167 bytecode
                 let clone_code := mload(0x40)
@@ -90,9 +124,11 @@ contract Strategy is BaseStrategy {
                 _rewards,
                 _keeper,
                 _maxSlippage,
-                _wantLp,
-                _hop
-            );
+                _lpToken,
+                _emissionToken,
+                _lpContract,
+                _lpStaker
+                );
 
             emit Cloned(newStrategy);
         }
@@ -113,13 +149,24 @@ contract Strategy is BaseStrategy {
         return balanceOfWant() + valueLpToWant();
     }
 
+    function pendingRewards() public view returns (uint256) {
+        return lpStaker.lpStaker(address(this));
+    }
+
     function prepareReturn(uint256 _debtOutstanding)
         internal
         override
-        returns (uint256 _profit, uint256 _loss, uint256 _debtPayment)
+        returns (
+            uint256 _profit,
+            uint256 _loss,
+            uint256 _debtPayment
+            )
     {
+        _claimRewards();
+
         uint256 _totalAssets = estimatedTotalAssets();
         uint256 _totalDebt = vault.strategies(address(this)).totalDebt;
+
         if (_totalAssets >= _totalDebt) {
             _profit = _totalAssets - _totalDebt;
             _loss = 0;
@@ -127,7 +174,9 @@ contract Strategy is BaseStrategy {
             _loss = _totalDebt - _totalAssets;
             _profit = 0;
         }
+
         _debtPayment = _debtOutstanding;
+
         // free up _debtOutstanding + our profit, and make any necessary adjustments to the accounting.
         uint256 _liquidWant = balanceOfWant();
         uint256 _toFree = _debtOutstanding + _profit;
@@ -148,13 +197,13 @@ contract Strategy is BaseStrategy {
             _profit = _profit - _loss;
             _loss = 0;
         } 
-        // Final accounting for P&L and debt payment
-        // Case 1 - enough to pay profit (or some) only
+
+        // enough to pay profit (partial or full) only
         if (_liquidWant <= _profit) {
             _profit = _liquidWant;
             _debtPayment = 0;
-        // Case 2 - enough to pay _profit and _debtOutstanding
-        // Case 3 - enough to pay for all profit, and some _debtOutstanding
+
+        // enough to pay for all profit and _debtOutstanding (partial or full)
         } else {
             _debtPayment = Math.min(_liquidWant - _profit, _debtOutstanding);
         }
@@ -190,14 +239,60 @@ contract Strategy is BaseStrategy {
     }
 
     function liquidateAllPositions() internal override returns (uint256) {
-        uint256 _lpTokenAmount = wantLp.balanceOf(address(this));
-        uint256 _amountToLiquidate = (_lpTokenAmount * hop.getVirtualPrice())/1e18;
+        uint256 _lpTokenAmount = balanceOfUnstakedLPToken();
+        uint256 _amountToLiquidate = (_lpTokenAmount * lpContract.getVirtualPrice())/1e18;
+        _unstakeAll();
         _removeliquidity(_amountToLiquidate);
         return want.balanceOf(address(this));
     }
 
     function prepareMigration(address _newStrategy) internal override {
-        wantLp.transfer(_newStrategy, wantLp.balanceOf(address(this)));
+        _unstakeAll();
+        lpToken.safeTransfer(_newStrategy, balanceOfUnstakedLPToken());
+    }
+
+// ---------------------- KEEP3RS ----------------------
+
+    // use this to determine when to harvest
+    function harvestTrigger(uint256 callCostinEth)
+        public
+        view
+        override
+        returns (bool)
+    {
+        // Should not trigger if strategy is not active (no assets and no debtRatio). This means we don't need to adjust keeper job.
+        if (!isActive()) {
+            return false;
+        }
+
+        StrategyParams memory params = vault.strategies(address(this));
+        // harvest no matter what once we reach our maxDelay
+        if (block.timestamp - params.lastReport > maxReportDelay) {
+            return true;
+        }
+
+        // check if the base fee gas price is higher than we allow. if it is, block harvests.
+        if (!isBaseFeeAcceptable()) {
+            return false;
+        }
+
+        // trigger if we want to manually harvest, but only if our gas price is acceptable
+        if (forceHarvestTriggerOnce) {
+            return true;
+        }
+
+        // harvest if we hit our minDelay, but only if our gas price is acceptable
+        if (block.timestamp - params.lastReport > minReportDelay) {
+            return true;
+        }
+
+        // harvest our credit if it's above our threshold
+        if (vault.creditAvailable() > creditThreshold) {
+            return true;
+        }
+
+        // otherwise, we don't harvest
+        return false;
     }
 
     function protectedTokens()
@@ -205,20 +300,41 @@ contract Strategy is BaseStrategy {
         view
         override
         returns (address[] memory)
-    // solhint-disable-next-line no-empty-blocks
     {}
 
-    function ethToWant(uint256 _amtInWei)
+    // convert our keeper's eth cost into want, we don't need this anymore since we override the baseStrategy harvestTrigger
+    function ethToWant(uint256 _ethAmount)
         public
         view
-        virtual
         override
         returns (uint256)
-    {
-        return _amtInWei;
+    {}
+
+// ----------------- YSWAPS FUNCTIONS ---------------------
+
+    function setTradeFactory(address _tradeFactory) external onlyGovernance {
+        if (tradeFactory != address(0)) {
+            _removeTradeFactoryPermissions();
+        }
+
+        // approve and set up trade factory
+        reward.safeApprove(_tradeFactory, max);
+        ITradeFactory tf = ITradeFactory(_tradeFactory);
+        tf.enable(address(reward), address(want));
+        tradeFactory = _tradeFactory;
     }
 
-    // ---------------------- MANAGEMENT FUNCTIONS ----------------------
+    function removeTradeFactoryPermissions() external onlyEmergencyAuthorized {
+        _removeTradeFactoryPermissions();
+    }
+
+    function _removeTradeFactoryPermissions() internal {
+        reward.safeApprove(tradeFactory, 0);
+        tradeFactory = address(0);
+    }
+}
+
+// ---------------------- MANAGEMENT FUNCTIONS ----------------------
 
     function setMaxSlippage(uint256 _maxSlippage)
         external
@@ -228,7 +344,7 @@ contract Strategy is BaseStrategy {
         maxSlippage = _maxSlippage;
     }
 
-    // ---------------------- HELPER AND UTILITY FUNCTIONS ----------------------
+// ---------------------- HELPER AND UTILITY FUNCTIONS ----------------------
 
     // To add liq, create an array of uints for how much of each asset we want to deposit
     // e.g. for 100 WETH, we would pass [100, 0], wtoken is always index 0
@@ -237,25 +353,28 @@ contract Strategy is BaseStrategy {
         uint256[] memory _amountsToAdd = new uint256[](2); 
         _amountsToAdd[0] = _wantAmount;
         uint256 _minLpToMint = (wantToLpToken(_wantAmount) * (MAX_BIPS - maxSlippage) / MAX_BIPS);
-        _checkAllowance(address(hop), address(want), _wantAmount); 
+        _checkAllowance(address(lpContract), address(want), _wantAmount); 
         /** 
         * @param amounts the amounts of each token to add, in their native precision
         * @param minToMint the minimum LP tokens adding this amount of liquidity
         */
-        hop.addLiquidity(_amountsToAdd, _minLpToMint, block.timestamp);
+        lpContract.addLiquidity(_amountsToAdd, _minLpToMint, block.timestamp);
+        _stakeAll();
     }
 
     function _removeliquidity(uint256 _wantAmount) internal returns (uint256 _liquidationProfit, uint256 _liquidationLoss) {
-        uint256 _lpAmountToRemove = Math.min(wantToLpToken(_wantAmount), wantLp.balanceOf(address(this))); // Math.min to prevent us from withdrawing more than we have
+        _unstakeAll();
+        uint256 _lpAmountToRemove = Math.min(wantToLpToken(_wantAmount), balanceOfUnstakedLPToken()); // Math.min to prevent us from withdrawing more than we have
         uint256 _estimatedTotalAssetsBefore = estimatedTotalAssets();
         uint256 _minWantOut = (_wantAmount * (MAX_BIPS - maxSlippage) / MAX_BIPS) / (10**(18-wantDecimals));       
-        _checkAllowance(address(hop), address(wantLp), _lpAmountToRemove); 
+
+        _checkAllowance(address(lpContract), address(lpToken), _lpAmountToRemove); 
         /**
         * @param tokenAmount the amount of the LP token you want to receive
         * @param tokenIndex the index of the token you want to receive
         * @param minAmount the minimum amount to withdraw, otherwise revert
         */
-        hop.removeLiquidityOneToken(_lpAmountToRemove, 0, _minWantOut, block.timestamp);       
+        lpContract.removeLiquidityOneToken(_lpAmountToRemove, 0, _minWantOut, block.timestamp);       
         uint256 _estimatedTotalAssetsAfter = estimatedTotalAssets();
         // depending on the reserves balances, there will be a positive or negative price impact
         if (_estimatedTotalAssetsAfter >= _estimatedTotalAssetsBefore) {
@@ -268,14 +387,14 @@ contract Strategy is BaseStrategy {
     }
 
     function _calculateRemoveLiquidityOneToken(uint256 _lpTokenAmount) public view returns (uint256) {
-        return hop.calculateRemoveLiquidityOneToken(address(this), _lpTokenAmount, 0);
+        return lpContract.calculateRemoveLiquidityOneToken(address(this), _lpTokenAmount, 0);
     }
 
     // using virtual price (pool_reserves/lp_supply) to estimate LP token value
     function valueLpToWant() public view returns (uint256) {
-        uint256 _lpTokenAmount = wantLp.balanceOf(address(this));
+        uint256 _lpTokenAmount = balanceOfUnstakedLPToken();
         // _lpTokenAmount always has 18 decimals, but sometimes we need to convert back to want with 6 decimals
-        uint256 _valueLpToWant = (_lpTokenAmount * hop.getVirtualPrice())/(10**(36-wantDecimals));      
+        uint256 _valueLpToWant = (_lpTokenAmount * lpContract.getVirtualPrice())/(10**(36-wantDecimals));      
         return _valueLpToWant;
     }
 
@@ -283,9 +402,43 @@ contract Strategy is BaseStrategy {
         return want.balanceOf(address(this));
     }
 
+    function _stakeAll() public view returns (uint256) {
+        lpStaker.stake(balanceOfUnstakedLPToken());
+    }
+
+    function _unstakeAll() public view returns (uint256) {
+        lpStaker.withdraw(balanceOfStakedLPToken());
+    }
+
+    function balanceOfUnstakedLPToken() public view returns (uint256) {
+        return lpToken.balanceOf(address(this));
+    }
+
+    function balanceOfStakedLPToken() public view returns (uint256) {
+        return lpStaker.balanceOf(address(this));
+    }
+
+    function balanceOfAllLPToken() public view returns (uint256) {
+        return balanceOfUnstakedLPToken() + balanceOfStakedLPToken();
+    }
+
+    function balanceOfReward() public view returns (uint256) {
+        return lpStaker.earned(address(this));
+    }
+
+    function _claimRewards() internal {
+        if (pendingRewards() > 0) {
+            lpStaker.getReward();
+        }
+    }
+
+    function claimRewards() external onlyVaultManagers {
+        _claimRewards();
+    }
+
     function wantToLpToken(uint _wantAmount)  public view returns (uint _amount){
         // lp token always has 18 decimals
-        return _wantAmount*10**(36-wantDecimals) / hop.getVirtualPrice();
+        return _wantAmount*10**(36-wantDecimals) / lpContract.getVirtualPrice();
     }
 
     function _checkAllowance(
