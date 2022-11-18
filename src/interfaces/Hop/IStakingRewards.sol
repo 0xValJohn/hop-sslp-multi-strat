@@ -13,4 +13,5 @@ interface IStakingRewards {
 
     function getReward() external;
 
+    function stakingToken() external view returns (address);
 }
