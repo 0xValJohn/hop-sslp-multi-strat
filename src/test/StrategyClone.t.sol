@@ -5,7 +5,7 @@ import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IVault} from "../interfaces/Vault.sol";
 import {Strategy} from "../Strategy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@yearnvaults/contracts/yToken.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 contract StrategyCloneTest is StrategyFixture {
     function setUp() public override {
@@ -48,8 +48,10 @@ contract StrategyCloneTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
-                wantLp[tokenSymbol], 
-                hop[tokenSymbol]
+                lpToken[tokenSymbol],
+                emissionToken[tokenSymbol],
+                lpContract[tokenSymbol],
+                lpStaker[tokenSymbol]
             );
 
             vm.prank(gov);
@@ -106,8 +108,10 @@ contract StrategyCloneTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
-                wantLp[tokenSymbol], 
-                hop[tokenSymbol]
+                lpToken[tokenSymbol],
+                emissionToken[tokenSymbol],
+                lpContract[tokenSymbol],
+                lpStaker[tokenSymbol]
             );
 
             vm.prank(gov);
@@ -122,8 +126,10 @@ contract StrategyCloneTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
-                wantLp[tokenSymbol], 
-                hop[tokenSymbol]
+                lpToken[tokenSymbol],
+                emissionToken[tokenSymbol],
+                lpContract[tokenSymbol],
+                lpStaker[tokenSymbol]
             );
         }
     }
@@ -146,16 +152,18 @@ contract StrategyCloneTest is StrategyFixture {
 
             deal(address(want), user, _amount);
 
-            string memory _tokenSymbol = IERC20Metadata(address(want)).symbol();
+            string memory tokenSymbol = IERC20Metadata(address(want)).symbol();
 
             address _newStrategy = strategy.cloneHop(
                 address(vault),
                 strategist,
                 rewards,
                 keeper,
-                maxSlippage[_tokenSymbol],
-                wantLp[_tokenSymbol], 
-                hop[_tokenSymbol]
+                maxSlippage[tokenSymbol],
+                lpToken[tokenSymbol],
+                emissionToken[tokenSymbol],
+                lpContract[tokenSymbol],
+                lpStaker[tokenSymbol]
             );
 
             vm.prank(gov);
@@ -169,9 +177,11 @@ contract StrategyCloneTest is StrategyFixture {
                 strategist,
                 rewards,
                 keeper,
-                maxSlippage[_tokenSymbol],
-                wantLp[_tokenSymbol], 
-                hop[_tokenSymbol]
+                maxSlippage[tokenSymbol],
+                lpToken[tokenSymbol],
+                emissionToken[tokenSymbol],
+                lpContract[tokenSymbol],
+                lpStaker[tokenSymbol]
             );
         }
     }

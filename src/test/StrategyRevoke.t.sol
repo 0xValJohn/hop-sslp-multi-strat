@@ -5,7 +5,6 @@ import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IVault} from "../interfaces/Vault.sol";
 import {Strategy} from "../Strategy.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@yearnvaults/contracts/yToken.sol";
 
 contract StrategyRevokeTest is StrategyFixture {
     function setUp() public override {

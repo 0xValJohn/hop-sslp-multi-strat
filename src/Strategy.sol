@@ -11,11 +11,15 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "./interfaces/Hop/ISwap.sol";
 import "./interfaces/Hop/IStakingRewards.sol";
+import "./interfaces/ySwaps/ITradeFactory.sol";
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
 
+    uint256 private constant max = type(uint256).max;
+
+    address public tradeFactory;
 // ---------------------- STATE VARIABLES ----------------------
     
     uint256 public maxSlippage;
@@ -56,8 +60,8 @@ contract Strategy is BaseStrategy {
         maxSlippage = _maxSlippage;
         lpToken = IERC20(_lpToken);
         emissionToken = IERC20(_emissionToken);
-        lpContract = lpContract(_lpContract);
-        lpStaker = lpStaker(_lpStaker);
+        lpContract = ISwap(_lpContract);
+        lpStaker = IStakingRewards(_lpStaker);
         wantDecimals = IERC20Metadata(address(want)).decimals();
     }
 
@@ -150,7 +154,7 @@ contract Strategy is BaseStrategy {
     }
 
     function pendingRewards() public view returns (uint256) {
-        return lpStaker.lpStaker(address(this));
+        return lpStaker.earned(address(this));
     }
 
     function prepareReturn(uint256 _debtOutstanding)
@@ -318,9 +322,9 @@ contract Strategy is BaseStrategy {
         }
 
         // approve and set up trade factory
-        reward.safeApprove(_tradeFactory, max);
+        emissionToken.safeApprove(_tradeFactory, max);
         ITradeFactory tf = ITradeFactory(_tradeFactory);
-        tf.enable(address(reward), address(want));
+        tf.enable(address(emissionToken), address(want));
         tradeFactory = _tradeFactory;
     }
 
@@ -329,10 +333,9 @@ contract Strategy is BaseStrategy {
     }
 
     function _removeTradeFactoryPermissions() internal {
-        reward.safeApprove(tradeFactory, 0);
+        emissionToken.safeApprove(tradeFactory, 0);
         tradeFactory = address(0);
     }
-}
 
 // ---------------------- MANAGEMENT FUNCTIONS ----------------------
 
@@ -402,11 +405,11 @@ contract Strategy is BaseStrategy {
         return want.balanceOf(address(this));
     }
 
-    function _stakeAll() public view returns (uint256) {
+    function _stakeAll() internal returns (uint256) {
         lpStaker.stake(balanceOfUnstakedLPToken());
     }
 
-    function _unstakeAll() public view returns (uint256) {
+    function _unstakeAll() internal returns (uint256) {
         lpStaker.withdraw(balanceOfStakedLPToken());
     }
 
