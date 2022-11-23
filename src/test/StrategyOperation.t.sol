@@ -97,6 +97,9 @@ contract StrategyOperationsTest is StrategyFixture {
             vm.prank(strategist);
             strategy.tend();
 
+            // @note simul. good withdraw conditions
+            simulateWantDeposit(_wantSymbol);
+
             vm.prank(user);
             vault.withdraw();
 
@@ -325,6 +328,7 @@ contract StrategyOperationsTest is StrategyFixture {
     function testSweep(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
 
+
         // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
@@ -365,19 +369,26 @@ contract StrategyOperationsTest is StrategyFixture {
             // vm.expectRevert("!protected");
             // strategy.sweep(strategy.protectedToken());
 
-            // TODO: Problem here (0xValjohn)
-            uint256 beforeBalance = weth.balanceOf(gov);
-            uint256 wethAmount = 1 ether;
-            deal(address(weth), user, wethAmount);
+            // @note modifier for sweep random token for weth strat, replacing by USDT
+            IERC20 tokenToSweep;
+            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
+                tokenToSweep = IERC20(0x94b008aA00579c1307B0EF2c499aD98a8ce58e58); 
+            } else {
+                tokenToSweep = weth;
+            }
+
+            uint256 beforeBalance = tokenToSweep.balanceOf(gov);
+            uint256 tokenAmount = 1 ether;
+            deal(address(tokenToSweep), user, tokenAmount);
             vm.prank(user);
-            weth.transfer(address(strategy), wethAmount);
-            assertNeq(address(weth), address(strategy.want()));
-            assertEq(weth.balanceOf(user), 0);
+            tokenToSweep.transfer(address(strategy), tokenAmount);
+            assertNeq(address(tokenToSweep), address(strategy.want()));
+            assertEq(tokenToSweep.balanceOf(user), 0);
             vm.prank(gov);
-            strategy.sweep(address(weth));
+            strategy.sweep(address(tokenToSweep));
             assertRelApproxEq(
-                weth.balanceOf(gov),
-                wethAmount + beforeBalance,
+                tokenToSweep.balanceOf(gov),
+                tokenAmount + beforeBalance,
                 DELTA
             );
         }
@@ -443,7 +454,7 @@ contract StrategyOperationsTest is StrategyFixture {
 
             deal(address(want), user, _amount);
 
-            // TODO: test here
+            // @todo add loss test
         }
     }
 
@@ -469,7 +480,7 @@ contract StrategyOperationsTest is StrategyFixture {
 
             deal(address(want), user, _amount);
 
-            // TODO: test here
+            // @todo add limited liq with profit test
         }
     }
 
@@ -495,7 +506,7 @@ contract StrategyOperationsTest is StrategyFixture {
 
             deal(address(want), user, _amount);
 
-            // TODO: test here
+            // @todo add limited liq with loss test
         }
     }
 
