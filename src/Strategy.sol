@@ -140,7 +140,7 @@ contract Strategy is BaseStrategy {
         uint256 _liquidWant = balanceOfWant();
         uint256 _toFree = _debtOutstanding + _profit;
 
-        // liquidate some of the Want
+        // liquidate some of the want
         if (_liquidWant < _toFree) {
             // liquidation can result in a profit depending on pool balance (slippage)
             (uint256 _liquidationProfit, uint256 _liquidationLoss) = _removeliquidity(_toFree);
@@ -299,7 +299,7 @@ contract Strategy is BaseStrategy {
 // ---------------------- HELPER AND UTILITY FUNCTIONS ----------------------
 
     // To add liq, create an array of uints for how much of each asset we want to deposit
-    // e.g. for 100 WETH, we would pass [100, 0], htoken is always index 0
+    // e.g. for 100 WETH, we would pass [100, 0], native token is always index 0
 
     function _addLiquidity(uint256 _wantAmount) internal {
         uint256[] memory _amountsToAdd = new uint256[](2);

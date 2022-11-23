@@ -36,8 +36,6 @@ contract StrategyShutdownTest is StrategyFixture {
         //
 
             deal(address(want), user, _amount);
-
-            // {prank for hop} Simulate a balanced pool
             simulateBalancedPool(_wantSymbol);
 
             // Deposit to the vault
@@ -59,7 +57,6 @@ contract StrategyShutdownTest is StrategyFixture {
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            // {prank for hop} Simulate LP fees
             simulateTransactionFee(_wantSymbol);
 
             // Harvest 2: Send funds through the strategy
@@ -68,7 +65,6 @@ contract StrategyShutdownTest is StrategyFixture {
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            // {prank for hop} Simulate favorable withdraw conditions
             simulateWantDeposit(_wantSymbol);
 
             // Set Emergency
@@ -104,6 +100,7 @@ contract StrategyShutdownTest is StrategyFixture {
         //
 
             deal(address(want), user, _amount);
+            simulateBalancedPool(_wantSymbol);
 
             // Deposit to the vault
             vm.prank(user);
