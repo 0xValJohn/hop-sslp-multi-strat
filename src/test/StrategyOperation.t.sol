@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.12;
+pragma solidity ^0.8.15;
 pragma abicoder v2;
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";

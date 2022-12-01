@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.12;
+pragma solidity ^0.8.15;
 pragma abicoder v2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -7,21 +7,14 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ExtendedTest} from "./ExtendedTest.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IVault} from "../../interfaces/Vault.sol";
-
-// NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../../Strategy.sol";
 import "../../interfaces/Hop/ISwap.sol";
-
-// Artifact paths for deploying from the deps folder, assumes that the command is run from
-// the project root.
 string constant vaultArtifact = "artifacts/Vault.json";
 
-// Base fixture deploying Vault
 contract StrategyFixture is ExtendedTest {
     using SafeERC20 for IERC20;
 
     struct AssetFixture {
-        // To test multiple assets
         IVault vault;
         Strategy strategy;
         IERC20 want;
@@ -33,8 +26,6 @@ contract StrategyFixture is ExtendedTest {
     AssetFixture[] public assetFixtures;
 
     mapping(string => uint256) public maxSlippage;
-    mapping(string => address) public lpToken;
-    mapping(string => address) public emissionToken;
     mapping(string => address) public lpStaker;
     mapping(string => address) public lpContract;
 
@@ -62,8 +53,6 @@ contract StrategyFixture is ExtendedTest {
         _setTokenPrices();
         _setTokenAddrs();
         _setMaxSlippage();
-        _setLpToken();
-        _setEmissionToken();
         _setLpContract();
         _setLpStaker();
         _setHToken();
@@ -128,8 +117,6 @@ contract StrategyFixture is ExtendedTest {
         Strategy _strategy = new Strategy(
             _vault,
             maxSlippage[_tokenSymbol],
-            lpToken[_tokenSymbol],
-            emissionToken[_tokenSymbol],
             lpContract[_tokenSymbol],
             lpStaker[_tokenSymbol]
             );
@@ -172,20 +159,6 @@ contract StrategyFixture is ExtendedTest {
         tokenAddrs["USDT"] = 0x94b008aA00579c1307B0EF2c499aD98a8ce58e58;
         tokenAddrs["USDC"] = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
         tokenAddrs["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-    }
-
-    function _setLpToken() internal {
-        lpToken["WETH"] = 0x5C2048094bAaDe483D0b1DA85c3Da6200A88a849;
-        lpToken["USDT"] = 0xF753A50fc755c6622BBCAa0f59F0522f264F006e;
-        lpToken["USDC"] = 0x2e17b8193566345a2Dd467183526dEdc42d2d5A8;
-        lpToken["DAI"] = 0x22D63A26c730d49e5Eab461E4f5De1D8BdF89C92;
-    }
-
-    function _setEmissionToken() internal {
-        emissionToken["WETH"] = 0xc5102fE9359FD9a28f877a67E36B0F050d81a3CC;
-        emissionToken["USDT"] = 0xc5102fE9359FD9a28f877a67E36B0F050d81a3CC;
-        emissionToken["USDC"] = 0xc5102fE9359FD9a28f877a67E36B0F050d81a3CC;
-        emissionToken["DAI"] = 0xc5102fE9359FD9a28f877a67E36B0F050d81a3CC;
     }
 
     function _setLpContract() internal {

@@ -5,6 +5,18 @@ pragma solidity ^0.8.12;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 interface ISwap {
+
+    struct SwapStorage {
+        uint256 initialA;
+        uint256 futureA;
+        uint256 initialATime;
+        uint256 futureATime;
+        uint256 swapFee;
+        uint256 adminFee;
+        uint256 defaultWithdrawFee;
+        address lpToken;
+    }
+
     function getVirtualPrice() external view returns (uint256);
 
     function calculateTokenAmount(address account, uint256[] calldata amounts, bool deposit)
@@ -32,4 +44,6 @@ interface ISwap {
     function swap(uint8 tokenIndexFrom, uint8 tokenIndexTo, uint256 dx, uint256 minDy, uint256 deadline)
         external
         returns (uint256);
+    
+    function swapStorage() external view returns (SwapStorage memory);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-pragma solidity ^0.8.12;
+pragma solidity ^0.8.15;
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 
@@ -8,7 +8,7 @@ import {Strategy} from "../Strategy.sol";
 import {IVault} from "../interfaces/Vault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
+import "forge-std/console2.sol";
 contract StrategyMigrationTest is StrategyFixture {
     function setUp() public override {
         super.setUp();
@@ -45,7 +45,7 @@ contract StrategyMigrationTest is StrategyFixture {
             vm.prank(user);
             vault.deposit(_amount);
 
-            address _newStrategy = strategy.cloneHop(
+            address _newStrategy = strategy.clone(
                 address(vault),
                 strategist,
                 rewards,
@@ -109,7 +109,7 @@ contract StrategyMigrationTest is StrategyFixture {
             deal(address(want), user, _amount);
             string memory tokenSymbol = ERC20(address(want)).symbol();
 
-            address _newStrategy = strategy.cloneHop(
+            address _newStrategy = strategy.clone(
                 address(vault),
                 strategist,
                 rewards,
@@ -127,7 +127,7 @@ contract StrategyMigrationTest is StrategyFixture {
             strategy = Strategy(_newStrategy);
 
             vm.expectRevert(abi.encodePacked("!clone"));
-            strategy.cloneHop(
+            strategy.clone(
                 address(vault),
                 strategist,
                 rewards,
@@ -165,7 +165,7 @@ contract StrategyMigrationTest is StrategyFixture {
 
             string memory tokenSymbol = ERC20(address(want)).symbol();
 
-            address _newStrategy = strategy.cloneHop(
+            address _newStrategy = strategy.clone(
                 address(vault),
                 strategist,
                 rewards,
