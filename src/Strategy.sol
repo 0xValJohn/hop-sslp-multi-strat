@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/Hop/ISwap.sol";
 import "./interfaces/Hop/IStakingRewards.sol";
 import "./interfaces/ySwaps/ITradeFactory.sol";
+import "forge-std/console2.sol"; // @debug for test logging only
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
@@ -51,7 +52,7 @@ contract Strategy is BaseStrategy {
         lpContract = ISwap(_lpContract);
         lpStaker = IStakingRewards(_lpStaker);
         lpToken = IERC20(lpContract.swapStorage().lpToken);
-        emissionToken = IERC20(lpStaker.stakingToken());
+        emissionToken = IERC20(lpStaker.rewardsToken());
         wantDecimals = IERC20Metadata(address(want)).decimals();
     }
 
@@ -103,7 +104,7 @@ contract Strategy is BaseStrategy {
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
-        return balanceOfWant() + valueLpToWant();
+        return balanceOfWant() + lpToWant(balanceOfAllLPToken());
     }
 
     function prepareReturn(uint256 _debtOutstanding)
@@ -145,18 +146,18 @@ contract Strategy is BaseStrategy {
 
         // @dev calculate _debtPayment
         // @dev enough to pay for all profit and _debtOutstanding (partial or full)
-        if (_liquidWant > _profit) {
-	        _debtPayment = Math.min(_liquidWant - _profit, _debtOutstanding);
+        if (_wantBalance > _profit) {
+	        _debtPayment = Math.min(_wantBalance - _profit, _debtOutstanding);
         // @dev enough to pay profit (partial or full) only
         } else {
-            _profit = _liquidWant;
+            _profit = _wantBalance;
             _debtPayment = 0;
         }
         forceHarvestTriggerOnce = false; // @dev for vault < 0.4.5, reset our trigger if we used it
     }
 
     function adjustPosition(uint256 _debtOutstanding) internal override {
-        uint256 _wantBalance  = balanceOfWant();
+        uint256 _wantBalance = balanceOfWant();
         if (_wantBalance  > _debtOutstanding) {
             uint256 _amountToInvest = _wantBalance  - _debtOutstanding;
             _addLiquidity(_amountToInvest);
@@ -177,16 +178,17 @@ contract Strategy is BaseStrategy {
         }
     }
 
-    function liquidateAllPositions() internal override returns (uint256) {
-        _unstakeAll();
+    function liquidateAllPositions() internal override returns (uint256) {       
+        _unstake(balanceOfStakedLPToken());
         if (balanceOfUnstakedLPToken() > 0) {
+
             _removeliquidity(balanceOfUnstakedLPToken());
         }
         return want.balanceOf(address(this));
     }
 
     function prepareMigration(address _newStrategy) internal override {
-        _unstakeAll();
+        _unstake(balanceOfAllLPToken());
         lpToken.safeTransfer(_newStrategy, balanceOfUnstakedLPToken());
         emissionToken.safeTransfer(_newStrategy, balanceOfEmissionToken());
     }
@@ -255,12 +257,12 @@ contract Strategy is BaseStrategy {
         maxSlippage = _maxSlippage;
     }
 
-    function stakeAll() external onlyVaultManagers {
-        _stakeAll();
+    function stake(uint256 _amountToStake) external onlyVaultManagers {
+        _stake(_amountToStake);
     }
 
-    function unstakeAll() external onlyVaultManagers {
-        _unstakeAll();
+    function unstake(uint256 _amountToUnstake) external onlyVaultManagers {
+        _unstake(_amountToUnstake);
     }
 
     function claimRewards() external onlyVaultManagers {
@@ -280,22 +282,22 @@ contract Strategy is BaseStrategy {
     function _addLiquidity(uint256 _wantAmount) internal {
         uint256[] memory _amountsToAdd = new uint256[](2);
         _amountsToAdd[0] = _wantAmount; // @dev native token is always index 0
-        uint256 _minLpToMint = (wantToLpToken(_wantAmount) * (MAX_BIPS - maxSlippage) / MAX_BIPS);
+        uint256 _minLpToMint = (wantToLp(_wantAmount) * (MAX_BIPS - maxSlippage) / MAX_BIPS);
         _checkAllowance(address(lpContract), address(want), _wantAmount);
         lpContract.addLiquidity(_amountsToAdd, _minLpToMint, max);
-        _stakeAll();
+        _stake(balanceOfUnstakedLPToken());
     }
 
     function _removeliquidity(uint256 _wantAmount)
         internal
         returns (uint256 _liquidationProfit, uint256 _liquidationLoss)
     {
-        _unstakeAll();
         uint256 _availableLiquidity = availableLiquidity();
-        uint256 _wantToLpToken = wantToLpToken(_wantAmount);
-        uint256 _lpAmountToRemove = Math.min(_wantToLpToken, _availableLiquidity); // @dev can't withdraw more than we have / is available
-        uint256 _minWantOut = (_wantAmount * (MAX_BIPS - maxSlippage) / MAX_BIPS) / (10 ** (18 - wantDecimals));
+        uint256 _lpAmount = wantToLp(_wantAmount);
+        uint256 _lpAmountToRemove = Math.min(_availableLiquidity, _lpAmount);
+        uint256 _minWantOut = (_lpAmountToRemove * (MAX_BIPS - maxSlippage) / MAX_BIPS) / (10 ** (18 - wantDecimals));
         uint256 _wantBefore = balanceOfWant();
+        _unstake(_lpAmountToRemove);
         _checkAllowance(address(lpContract), address(lpToken), _lpAmountToRemove);
         lpContract.removeLiquidityOneToken(_lpAmountToRemove, 0, _minWantOut, max);
         uint256 _wantFreed = balanceOfWant() - _wantBefore;
@@ -304,21 +306,12 @@ contract Strategy is BaseStrategy {
             return (_wantFreed - _lpAmountToRemove, 0);
         }
         
-        if (_wantAmount > _wantToLpToken) { // @dev not enought liquidity for full withdraw
+        if (_wantAmount > _lpAmountToRemove) { // @dev not enought liquidity for full withdraw
             return (0, _availableLiquidity - _wantFreed);
 
         } else { // @dev liquidity was sufficient, but we realised a loss from slippage
             return (0, _wantFreed - _wantAmount);
         }
-
-        _stakeAll();
-    }
-
-    // @dev using virtual price (pool_reserves/lp_supply) to estimate LP token value
-    function valueLpToWant() public view returns (uint256) {
-        uint256 _lpTokenAmount = balanceOfAllLPToken();
-        uint256 _valueLpToWant = (_lpTokenAmount * lpContract.getVirtualPrice()) / (10 ** (36 - wantDecimals)); //@dev decimals conversion, _lpTokenAmount always has 18 decimals
-        return _valueLpToWant;
     }
 
     function balanceOfWant() public view returns (uint256) {
@@ -341,35 +334,37 @@ contract Strategy is BaseStrategy {
         return emissionToken.balanceOf(address(this));
     }
 
-    function wantToLpToken(uint256 _wantAmount) public view returns (uint256 _amount) { // @dev  assumes a balanced pool, for estimate only
-        return _wantAmount * 10 ** (36 - wantDecimals) / lpContract.getVirtualPrice(); // @dev lp token always has 18 decimals
-    }
-
-    function pendingRewards() public view returns (uint256) {
+    function claimableRewards() public view returns (uint256) {
         return lpStaker.earned(address(this));
     }
 
-    function _claimRewards() internal {
-        if (pendingRewards() > 0) {
-            lpStaker.getReward();
-        }
-    }
-
-    function _stakeAll() internal returns (uint256) {
-        if (balanceOfUnstakedLPToken() > 0) {
-            _checkAllowance(address(lpStaker), address(lpStaker.stakingToken()), balanceOfUnstakedLPToken());
-            lpStaker.stake(balanceOfUnstakedLPToken());
-        }    
-    }
-
-    function _unstakeAll() internal returns (uint256) {
-        if (balanceOfStakedLPToken() > 0) {
-            lpStaker.withdraw(balanceOfStakedLPToken());
-        }
-    }
-
-    function availableLiquidity() public view returns (uint256) { // @dev returns the amount of native asset avail.
+    function availableLiquidity() public view returns (uint256) { // @dev returns amount of native asset
         return want.balanceOf(address(lpContract));
+    }
+
+    function wantToLp(uint256 _wantAmount) public view returns (uint256) {
+        return _wantAmount * 10 ** (36 - wantDecimals) / lpContract.getVirtualPrice();
+    }
+
+    function lpToWant(uint256 _lpAmount) public view returns (uint256) {
+        return lpContract.getVirtualPrice()/ (10 ** (36 - wantDecimals));
+    }
+
+    function _calculateRemoveLiquidityOneToken(uint256 _lpTokenAmount) internal returns (uint256) {
+        return lpContract.calculateRemoveLiquidityOneToken(address(this), _lpTokenAmount, 0);
+    }
+
+    function _claimRewards() internal {
+        lpStaker.getReward();
+    }
+
+    function _stake(uint256 _amountToStake) internal {
+        _checkAllowance(address(lpStaker), address(lpToken), _amountToStake);
+        lpStaker.stake(_amountToStake);
+    }
+
+    function _unstake(uint256 _amountToUnstake) internal {
+        lpStaker.withdraw(_amountToUnstake);
     }
 
     function _checkAllowance(address _contract, address _token, uint256 _amount) internal {

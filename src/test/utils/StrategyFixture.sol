@@ -60,8 +60,8 @@ contract StrategyFixture is ExtendedTest {
         weth = IERC20(tokenAddrs["WETH"]);
 
         // want selector for strategy
-        string[1] memory _tokensToTest = ["WETH"];
-        // string[3] memory _tokensToTest = ["DAI", "USDT", "USDC"];
+        // string[1] memory _tokensToTest = ["USDC"];
+        string[3] memory _tokensToTest = ["DAI", "USDT", "USDC"];
 
         for (uint8 i = 0; i < _tokensToTest.length; ++i) {
             string memory _tokenToTest = _tokensToTest[i];

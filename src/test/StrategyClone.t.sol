@@ -51,8 +51,6 @@ contract StrategyMigrationTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
-                lpToken[tokenSymbol],
-                emissionToken[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );
@@ -61,19 +59,10 @@ contract StrategyMigrationTest is StrategyFixture {
             vault.migrateStrategy(address(strategy), _newStrategy);
             strategy = Strategy(_newStrategy);
 
-            // simulate a balanced pool
-            simulateBalancedPool(_wantSymbol);
-
-            // simulate LP fees
-            simulateTransactionFee(_wantSymbol);
-
             skip(60);
             vm.prank(strategist);
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
-
-            // simulate favorable withdraw conditions
-            simulateWantDeposit(_wantSymbol);
 
             vm.prank(strategist);
             skip(60);
@@ -115,8 +104,6 @@ contract StrategyMigrationTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
-                lpToken[tokenSymbol],
-                emissionToken[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );
@@ -133,8 +120,6 @@ contract StrategyMigrationTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
-                lpToken[tokenSymbol],
-                emissionToken[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );
@@ -171,8 +156,6 @@ contract StrategyMigrationTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
-                lpToken[tokenSymbol],
-                emissionToken[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );
@@ -189,8 +172,6 @@ contract StrategyMigrationTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
-                lpToken[tokenSymbol],
-                emissionToken[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );

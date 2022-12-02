@@ -34,7 +34,6 @@ contract StrategyShutdownTest is StrategyFixture {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
         //
-
             deal(address(want), user, _amount);
             simulateBalancedPool(_wantSymbol);
 
@@ -57,15 +56,17 @@ contract StrategyShutdownTest is StrategyFixture {
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            simulateTransactionFee(_wantSymbol);
-
             // Harvest 2: Send funds through the strategy
-            skip(7 hours);
+            skip(30 days);
             vm.prank(strategist);
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            simulateWantDeposit(_wantSymbol);
+                  // Harvest 2: Send funds through the strategy
+            skip(30 days);
+            vm.prank(strategist);
+            strategy.harvest();
+            assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);      
 
             // Set Emergency
             vm.prank(gov);
