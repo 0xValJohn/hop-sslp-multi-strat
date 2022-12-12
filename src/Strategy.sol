@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
-
 pragma solidity ^0.8.15;
-pragma experimental ABIEncoderV2;
 
 import {BaseStrategy, StrategyParams} from "@yearnvaults/contracts/BaseStrategy.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
@@ -16,8 +14,6 @@ contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
 
-// ---------------------- STATE VARIABLES ----------------------
-
     bool internal isOriginal = true;
     uint256 private constant max = type(uint256).max;
     address public tradeFactory;
@@ -28,8 +24,6 @@ contract Strategy is BaseStrategy {
     IStakingRewards public lpStaker;
     uint256 internal constant MAX_BIPS = 10_000;
     uint256 internal wantDecimals;
-
-// ---------------------- CONSTRUCTOR ----------------------
 
     constructor(
         address _vault,
@@ -56,7 +50,6 @@ contract Strategy is BaseStrategy {
         wantDecimals = IERC20Metadata(address(want)).decimals();
     }
 
-// ---------------------- CLONING ----------------------
     event Cloned(address indexed clone);
 
     function initialize(
@@ -97,8 +90,6 @@ contract Strategy is BaseStrategy {
         emit Cloned(newStrategy);
     }
 
-// ---------------------- MAIN ----------------------
-
     function name() external view override returns (string memory) {
         return string(abi.encodePacked("StrategyHop", IERC20Metadata(address(want)).symbol()));
     }
@@ -116,24 +107,24 @@ contract Strategy is BaseStrategy {
         uint256 _totalAssets = estimatedTotalAssets();
         uint256 _totalDebt = vault.strategies(address(this)).totalDebt;
 
-        // @dev calculate intial profits - no underflow risk
+        // @note calculate intial profits - no underflow risk
         unchecked { _profit = _totalAssets > _totalDebt ? _totalAssets - _totalDebt : 0; }
 
-        // @dev free up _debtOutstanding + our profit
+        // @note free up _debtOutstanding + our profit
         uint256 _toLiquidate = _debtOutstanding + _profit;
         uint256 _wantBalance = balanceOfWant();
 
-        // @dev  liquidate some of the want
+        // @note  liquidate some of the want
         if (_wantBalance  < _toLiquidate) {
-            // @dev  liquidation can result in a profit depending on pool balance (slippage)
+            // @note  liquidation can result in a profit depending on pool balance (slippage)
             (uint256 _liquidationProfit, uint256 _liquidationLoss) = _removeliquidity(_toLiquidate);
-            // @dev  update the P&L to account for liquidation
+            // @note  update the P&L to account for liquidation
             _loss = _loss + _liquidationLoss;
             _profit = _profit + _liquidationProfit;
             _wantBalance  = balanceOfWant();
         }
 
-        // @dev calculate final p&L - no underflow risk
+        // @note calculate final p&L - no underflow risk
         unchecked { (_loss = _loss + (_totalDebt > _totalAssets ? _totalDebt - _totalAssets : 0)); }
 
         if (_loss > _profit) {
@@ -144,16 +135,15 @@ contract Strategy is BaseStrategy {
             _loss = 0;
         }
 
-        // @dev calculate _debtPayment
-        // @dev enough to pay for all profit and _debtOutstanding (partial or full)
+        // @note calculate _debtPayment
+        // @note enough to pay for all profit and _debtOutstanding (partial or full)
         if (_wantBalance > _profit) {
 	        _debtPayment = Math.min(_wantBalance - _profit, _debtOutstanding);
-        // @dev enough to pay profit (partial or full) only
+        // @note enough to pay profit (partial or full) only
         } else {
             _profit = _wantBalance;
             _debtPayment = 0;
         }
-        forceHarvestTriggerOnce = false; // @dev for vault < 0.4.5, reset our trigger if we used it
     }
 
     function adjustPosition(uint256 _debtOutstanding) internal override {
@@ -173,6 +163,7 @@ contract Strategy is BaseStrategy {
         if (_wantBalance  < _amountNeeded) {
             (_loss, ) = _removeliquidity(_amountNeeded - _wantBalance);
             _liquidatedAmount = Math.min(balanceOfWant(),_amountNeeded);
+            return (_liquidateAmount, _loss);
         } else {
             return (_amountNeeded, 0);
         }
@@ -193,42 +184,15 @@ contract Strategy is BaseStrategy {
         emissionToken.safeTransfer(_newStrategy, balanceOfEmissionToken());
     }
 
-// ---------------------- KEEP3RS ----------------------
-
-    function harvestTrigger(uint256 callCostinEth) public view override returns (bool) {
-        if (!isActive()) {
-            return false;
-        }
-
-        StrategyParams memory params = vault.strategies(address(this));
-        if (block.timestamp - params.lastReport > maxReportDelay) {
-            return true;
-        }
-
-        if (!isBaseFeeAcceptable()) {
-            return false;
-        }
-
-        if (forceHarvestTriggerOnce) {
-            return true;
-        }
-
-        if (block.timestamp - params.lastReport > minReportDelay) {
-            return true;
-        }
-
-        if (vault.creditAvailable() > creditThreshold) {
-            return true;
-        }
-
-        return false;
+    function protectedTokens() internal view override returns (address[] memory) {
+        address[] memory protectedTokens = new address[](1);
+        protectedTokens[0] = address(lpToken);
+        return protectedTokens;
     }
 
     function protectedTokens() internal view override returns (address[] memory) {}
 
     function ethToWant(uint256 _ethAmount) public view override returns (uint256) {}
-
-// ----------------- YSWAPS FUNCTIONS ---------------------
 
     function setTradeFactory(address _tradeFactory) external onlyGovernance {
         if (tradeFactory != address(0)) {
@@ -249,8 +213,6 @@ contract Strategy is BaseStrategy {
         emissionToken.safeApprove(tradeFactory, 0);
         tradeFactory = address(0);
     }
-
-// ---------------------- MANAGEMENT FUNCTIONS ----------------------
 
     function setMaxSlippage(uint256 _maxSlippage) external onlyVaultManagers {
         require(_maxSlippage < 10_000);
@@ -277,11 +239,9 @@ contract Strategy is BaseStrategy {
         _removeliquidity(_wantAmount);
     }
 
-// ---------------------- HELPER AND UTILITY FUNCTIONS ----------------------
-
     function _addLiquidity(uint256 _wantAmount) internal {
         uint256[] memory _amountsToAdd = new uint256[](2);
-        _amountsToAdd[0] = _wantAmount; // @dev native token is always index 0
+        _amountsToAdd[0] = _wantAmount; // @note native token is always index 0
         uint256 _minLpToMint = (wantToLp(_wantAmount) * (MAX_BIPS - maxSlippage) / MAX_BIPS);
         _checkAllowance(address(lpContract), address(want), _wantAmount);
         lpContract.addLiquidity(_amountsToAdd, _minLpToMint, max);
@@ -302,14 +262,14 @@ contract Strategy is BaseStrategy {
         lpContract.removeLiquidityOneToken(_lpAmountToRemove, 0, _minWantOut, max);
         uint256 _wantFreed = balanceOfWant() - _wantBefore;
         
-        if (_wantFreed >= _wantAmount) { // @dev we realised a profit from positive slippage
+        if (_wantFreed >= _wantAmount) { // @note we realised a profit from positive slippage
             return (_wantFreed - _lpAmountToRemove, 0);
         }
         
-        if (_wantAmount > _lpAmountToRemove) { // @dev not enought liquidity for full withdraw
+        if (_wantAmount > _lpAmountToRemove) { // @note not enought liquidity for full withdraw
             return (0, _availableLiquidity - _wantFreed);
 
-        } else { // @dev liquidity was sufficient, but we realised a loss from slippage
+        } else { // @note liquidity was sufficient, but we realised a loss from slippage
             return (0, _wantFreed - _wantAmount);
         }
     }
@@ -338,7 +298,7 @@ contract Strategy is BaseStrategy {
         return lpStaker.earned(address(this));
     }
 
-    function availableLiquidity() public view returns (uint256) { // @dev returns amount of native asset
+    function availableLiquidity() public view returns (uint256) { // @note returns amount of native asset
         return want.balanceOf(address(lpContract));
     }
 
