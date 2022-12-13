@@ -95,7 +95,12 @@ contract Strategy is BaseStrategy {
     }
 
     function estimatedTotalAssets() public view override returns (uint256) {
-        return balanceOfWant() + lpToWant(balanceOfAllLPToken());
+        uint256 _balanceOfAllLPToken = balanceOfAllLPToken();
+        if (_balanceOfAllLPToken > 0) {
+            return balanceOfWant() + lpToWant(_balanceOfAllLPToken);
+        } else {
+            return balanceOfWant();
+        }
     }
 
     function prepareReturn(uint256 _debtOutstanding)
@@ -103,7 +108,11 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _profit, uint256 _loss, uint256 _debtPayment)
     {
-        _claimRewards();
+
+        if ( claimableRewards() > 0) {
+            _claimRewards();
+        }
+        
         uint256 _totalAssets = estimatedTotalAssets();
         uint256 _totalDebt = vault.strategies(address(this)).totalDebt;
 
@@ -163,7 +172,7 @@ contract Strategy is BaseStrategy {
         if (_wantBalance  < _amountNeeded) {
             (_loss, ) = _removeliquidity(_amountNeeded - _wantBalance);
             _liquidatedAmount = Math.min(balanceOfWant(),_amountNeeded);
-            return (_liquidateAmount, _loss);
+            return (_liquidatedAmount, _loss);
         } else {
             return (_amountNeeded, 0);
         }
@@ -179,15 +188,27 @@ contract Strategy is BaseStrategy {
     }
 
     function prepareMigration(address _newStrategy) internal override {
-        _unstake(balanceOfAllLPToken());
-        lpToken.safeTransfer(_newStrategy, balanceOfUnstakedLPToken());
-        emissionToken.safeTransfer(_newStrategy, balanceOfEmissionToken());
+        uint256 _balanceOfStakedLPToken = balanceOfStakedLPToken();
+        uint256 _balanceOfEmissionToken = balanceOfEmissionToken();
+
+        if (_balanceOfStakedLPToken > 0) {
+            _unstake(_balanceOfStakedLPToken);
+        }
+
+        uint256 _balanceOfUnstakedLPToken = balanceOfUnstakedLPToken();
+
+        if (_balanceOfUnstakedLPToken> 0) {
+             lpToken.safeTransfer(_newStrategy, _balanceOfUnstakedLPToken);
+        }
+
+        if (_balanceOfEmissionToken > 0) {
+            emissionToken.safeTransfer(_newStrategy, _balanceOfEmissionToken);
+        }
     }
 
-    function protectedTokens() internal view override returns (address[] memory) {
-        address[] memory protectedTokens = new address[](1);
-        protectedTokens[0] = address(lpToken);
-        return protectedTokens;
+  function harvestTrigger(uint256 callCostInWei) public view virtual override returns (bool) {
+        StrategyParams memory params = vault.strategies(address(this));
+        return super.harvestTrigger(callCostInWei) || block.timestamp - params.lastReport > minReportDelay;
     }
 
     function protectedTokens() internal view override returns (address[] memory) {}
@@ -252,12 +273,23 @@ contract Strategy is BaseStrategy {
         internal
         returns (uint256 _liquidationProfit, uint256 _liquidationLoss)
     {
-        uint256 _availableLiquidity = availableLiquidity();
         uint256 _lpAmount = wantToLp(_wantAmount);
-        uint256 _lpAmountToRemove = Math.min(_availableLiquidity, _lpAmount);
+        uint256 _availableLiquidity = availableLiquidity(); 
+        uint256 _balanceOfAllLPToken = balanceOfAllLPToken();
+        uint256 _balanceOfUnstakedLPToken = balanceOfUnstakedLPToken();
+        uint256 _lpAmountToRemove = Math.min(_lpAmount, _balanceOfAllLPToken); // @note can't withdraw more than we have
+        
+        if (_lpAmountToRemove > _availableLiquidity) { // @note limited liquidity on origin chain, hedge case
+            _lpAmountToRemove = _availableLiquidity;
+        }
+
         uint256 _minWantOut = (_lpAmountToRemove * (MAX_BIPS - maxSlippage) / MAX_BIPS) / (10 ** (18 - wantDecimals));
         uint256 _wantBefore = balanceOfWant();
-        _unstake(_lpAmountToRemove);
+
+        if (_lpAmountToRemove > _balanceOfUnstakedLPToken) { // @note we need to unstake
+            _unstake(_lpAmountToRemove - _balanceOfUnstakedLPToken);
+        }
+        
         _checkAllowance(address(lpContract), address(lpToken), _lpAmountToRemove);
         lpContract.removeLiquidityOneToken(_lpAmountToRemove, 0, _minWantOut, max);
         uint256 _wantFreed = balanceOfWant() - _wantBefore;
@@ -303,11 +335,11 @@ contract Strategy is BaseStrategy {
     }
 
     function wantToLp(uint256 _wantAmount) public view returns (uint256) {
-        return _wantAmount * 10 ** (36 - wantDecimals) / lpContract.getVirtualPrice();
+        return (_wantAmount * 10 ** (18 - wantDecimals)) / lpContract.getVirtualPrice();
     }
 
     function lpToWant(uint256 _lpAmount) public view returns (uint256) {
-        return lpContract.getVirtualPrice()/ (10 ** (36 - wantDecimals));
+        return _lpAmount * lpContract.getVirtualPrice() / (10 ** (36 - wantDecimals));
     }
 
     function _calculateRemoveLiquidityOneToken(uint256 _lpTokenAmount) internal returns (uint256) {
