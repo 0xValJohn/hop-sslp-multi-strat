@@ -33,7 +33,7 @@ contract StrategyShutdownTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
+            //
             deal(address(want), user, _amount);
             simulateBalancedPool(_wantSymbol);
 
@@ -62,11 +62,11 @@ contract StrategyShutdownTest is StrategyFixture {
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-                  // Harvest 2: Send funds through the strategy
+            // Harvest 2: Send funds through the strategy
             skip(30 days);
             vm.prank(strategist);
             strategy.harvest();
-            assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);      
+            assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
             // Set Emergency
             vm.prank(gov);
@@ -98,8 +98,7 @@ contract StrategyShutdownTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
             simulateBalancedPool(_wantSymbol);
 

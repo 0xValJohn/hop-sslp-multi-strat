@@ -32,8 +32,7 @@ contract StrategyMigrationTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault and harvest
@@ -57,7 +56,7 @@ contract StrategyMigrationTest is StrategyFixture {
 
     function testRevokeStrategyFromStrategy(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-        
+
         // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
@@ -73,8 +72,7 @@ contract StrategyMigrationTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             vm.prank(user);

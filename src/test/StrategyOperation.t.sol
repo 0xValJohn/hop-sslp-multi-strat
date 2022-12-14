@@ -21,7 +21,6 @@ contract StrategyOperationsTest is StrategyFixture {
     }
 
     function testSetupVaultOK() public {
-
         // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
@@ -30,8 +29,7 @@ contract StrategyOperationsTest is StrategyFixture {
             IERC20 want = _assetFixture.want;
             uint8 _wantDecimals = ERC20(address(want)).decimals();
             string memory _wantSymbol = ERC20(address(want)).symbol();
-        //
-
+            //
             console2.log("address of vault", address(vault));
             assertTrue(address(0) != address(vault));
             assertEq(vault.token(), address(want));
@@ -41,7 +39,6 @@ contract StrategyOperationsTest is StrategyFixture {
 
     // TODO: add additional check on strat params
     function testSetupStrategyOK() public {
-        
         // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
@@ -50,8 +47,7 @@ contract StrategyOperationsTest is StrategyFixture {
             IERC20 want = _assetFixture.want;
             uint8 _wantDecimals = ERC20(address(want)).decimals();
             string memory _wantSymbol = ERC20(address(want)).symbol();
-        //
-
+            //
             console2.log("address of strategy", address(strategy));
             assertTrue(address(0) != address(strategy));
             assertEq(address(strategy.vault()), address(vault));
@@ -77,8 +73,7 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             uint256 balanceBefore = want.balanceOf(address(user));
@@ -125,8 +120,7 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault
@@ -167,8 +161,7 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault
@@ -219,8 +212,7 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault and harvest
@@ -272,8 +264,7 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault
@@ -328,7 +319,6 @@ contract StrategyOperationsTest is StrategyFixture {
     function testSweep(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
 
-
         // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
@@ -344,8 +334,7 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // Strategy want token doesn't work
@@ -372,7 +361,7 @@ contract StrategyOperationsTest is StrategyFixture {
             // @note modifier for sweep random token for weth strat, replacing by USDT
             IERC20 tokenToSweep;
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                tokenToSweep = IERC20(0x94b008aA00579c1307B0EF2c499aD98a8ce58e58); 
+                tokenToSweep = IERC20(0x94b008aA00579c1307B0EF2c499aD98a8ce58e58);
             } else {
                 tokenToSweep = weth;
             }
@@ -386,11 +375,7 @@ contract StrategyOperationsTest is StrategyFixture {
             assertEq(tokenToSweep.balanceOf(user), 0);
             vm.prank(gov);
             strategy.sweep(address(tokenToSweep));
-            assertRelApproxEq(
-                tokenToSweep.balanceOf(gov),
-                tokenAmount + beforeBalance,
-                DELTA
-            );
+            assertRelApproxEq(tokenToSweep.balanceOf(gov), tokenAmount + beforeBalance, DELTA);
         }
     }
 
@@ -412,8 +397,7 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault and harvest
@@ -450,8 +434,7 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // @todo add loss test
@@ -476,8 +459,7 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // @todo add limited liq with profit test
@@ -502,13 +484,10 @@ contract StrategyOperationsTest is StrategyFixture {
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
                 _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
             }
-        //
-
+            //
             deal(address(want), user, _amount);
 
             // @todo add limited liq with loss test
         }
     }
-
-
 }

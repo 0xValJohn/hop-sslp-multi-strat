@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.15;
-pragma abicoder v2;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -9,6 +8,8 @@ import {Vm} from "forge-std/Vm.sol";
 import {IVault} from "../../interfaces/Vault.sol";
 import {Strategy} from "../../Strategy.sol";
 import "../../interfaces/Hop/ISwap.sol";
+import "forge-std/console2.sol"; // @debug for test logging only
+
 string constant vaultArtifact = "artifacts/Vault.json";
 
 contract StrategyFixture is ExtendedTest {
@@ -28,11 +29,9 @@ contract StrategyFixture is ExtendedTest {
     mapping(string => uint256) public maxSlippage;
     mapping(string => address) public lpStaker;
     mapping(string => address) public lpContract;
-
     mapping(string => address) public tokenAddrs;
     mapping(string => uint256) public tokenPrices;
-
-    mapping(string => address) public hToken;    
+    mapping(string => address) public hToken;
 
     address public gov = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
     address public user = address(1);
@@ -47,7 +46,7 @@ contract StrategyFixture is ExtendedTest {
     // @dev maximum amount of want tokens deposited based on @maxDollarNotional
     uint256 public maxFuzzAmt = 1_000_000 ether; // keeping in mind the WETH mod --> 100 WETH --> 0.1 WETH
     // @dev maximum dollar amount of tokens to be deposited
-    uint256 public constant DELTA = 1;
+    uint256 public constant DELTA = 10**1;
 
     function setUp() public virtual {
         _setTokenPrices();
@@ -60,8 +59,8 @@ contract StrategyFixture is ExtendedTest {
         weth = IERC20(tokenAddrs["WETH"]);
 
         // want selector for strategy
-        // string[1] memory _tokensToTest = ["USDC"];
-        string[3] memory _tokensToTest = ["DAI", "USDT", "USDC"];
+        string[4] memory _tokensToTest = ["DAI", "USDT", "USDC", "WETH"];
+        // string[1] memory _tokensToTest = ["WETH"];
 
         for (uint8 i = 0; i < _tokensToTest.length; ++i) {
             string memory _tokenToTest = _tokensToTest[i];
@@ -76,6 +75,8 @@ contract StrategyFixture is ExtendedTest {
             vm.label(address(_vault), string(abi.encodePacked(_tokenToTest, "Vault")));
             vm.label(address(_strategy), string(abi.encodePacked(_tokenToTest, "Strategy")));
             vm.label(address(_want), _tokenToTest);
+
+            poolBalancesHelper(_tokenToTest);         
         }
 
         // add more labels to make your traces readable
@@ -210,21 +211,20 @@ contract StrategyFixture is ExtendedTest {
             deal(address(_hToken), whale, _hTokenToLP);
             vm.startPrank(whale);
             _hToken.approve(address(hopContract), _hTokenToLP);
-            uint256[] memory _amountsToAdd = new uint256[](2); 
-            _amountsToAdd[1] = _hTokenToLP; 
+            uint256[] memory _amountsToAdd = new uint256[](2);
+            _amountsToAdd[1] = _hTokenToLP;
             hopContract.addLiquidity(_amountsToAdd, 0, block.timestamp);
             vm.stopPrank();
-            }
-        else {
+        } else {
             uint256 _wantTokenToLP = _hTokenInitialBalance - _wantInitialBalance;
             deal(address(_want), whale, _wantTokenToLP);
             vm.startPrank(whale);
             _want.approve(address(hopContract), _wantTokenToLP);
-            uint256[] memory _amountsToAdd = new uint256[](2); 
+            uint256[] memory _amountsToAdd = new uint256[](2);
             _amountsToAdd[0] = _wantTokenToLP;
             hopContract.addLiquidity(_amountsToAdd, 0, block.timestamp);
             vm.stopPrank();
-            }
+        }
     }
 
     // simulating want token deposit
@@ -233,11 +233,11 @@ contract StrategyFixture is ExtendedTest {
         IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
         IERC20 _want = IERC20(address(tokenAddrs[_tokenSymbol]));
         uint256 _wantInitialBalance = _want.balanceOf(address(hopContract));
-        uint256 _wantTokenToLP = _wantInitialBalance * 1/2; // add want token in the pool
+        uint256 _wantTokenToLP = _wantInitialBalance * 1 / 2; // add want token in the pool
         deal(address(_want), whale, _wantTokenToLP);
         vm.startPrank(whale);
         _want.approve(address(hopContract), _wantTokenToLP);
-        uint256[] memory _amountsToAdd = new uint256[](2); 
+        uint256[] memory _amountsToAdd = new uint256[](2);
         _amountsToAdd[0] = _wantTokenToLP;
         hopContract.addLiquidity(_amountsToAdd, 0, block.timestamp);
         vm.stopPrank();
@@ -250,7 +250,8 @@ contract StrategyFixture is ExtendedTest {
         ISwap hopContract = ISwap(address(lpContract[_tokenSymbol]));
         uint256 _wantInitialBalance = _want.balanceOf(address(hopContract));
         uint256 _hTokenInitialBalance = _hToken.balanceOf(address(hopContract));
-        for (uint i = 0; i < 10; i++) { // generate fees for volume equal to total pool * 2 (back and forth) * x
+        for (uint256 i = 0; i < 10; i++) {
+            // generate fees for volume equal to total pool * 2 (back and forth) * x
             vm.startPrank(whale);
             deal(address(_want), whale, _hTokenInitialBalance);
             _want.approve(address(hopContract), _hTokenInitialBalance);
@@ -261,5 +262,15 @@ contract StrategyFixture is ExtendedTest {
             vm.stopPrank();
         }
         simulateBalancedPool(_tokenSymbol); // get the pool back in line
+        console2.log("_want.balanceOf(address(hopContract)", _want.balanceOf(address(hopContract)));
+        console2.log("_hToken.balanceOf(address(hopContract))", _hToken.balanceOf(address(hopContract)));
     }
+
+    function poolBalancesHelper(string memory _tokenSymbol) public {
+        IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
+        IERC20 _want = IERC20(address(tokenAddrs[_tokenSymbol]));
+        ISwap hopContract = ISwap(address(lpContract[_tokenSymbol]));
+        console2.log("{poolBalancesHelper} _want / _hToken", _tokenSymbol, _want.balanceOf(address(hopContract))/(10 ** ERC20(address(_want)).decimals()), _hToken.balanceOf(address(hopContract))/(10 ** ERC20(address(_hToken)).decimals()));
+    }
+
 }
