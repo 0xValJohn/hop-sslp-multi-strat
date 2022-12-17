@@ -93,6 +93,7 @@ contract StrategyOperationsTest is StrategyFixture {
             strategy.tend();
 
             // @note simul. good withdraw conditions
+            simulateTransactionFee(_wantSymbol);
             simulateWantDeposit(_wantSymbol);
 
             vm.prank(user);
