@@ -2,17 +2,20 @@
 pragma solidity ^0.8.15;
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
-import {Strategy} from "../Strategy.sol";
-import {IVault} from "../interfaces/Vault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Vm} from "forge-std/Vm.sol";
+import {IVault} from "../interfaces/Vault.sol";
+import {Strategy} from "../Strategy.sol";
+import "../interfaces/Hop/ISwap.sol";
+import "forge-std/console2.sol";
 
-contract StrategyMigrationTest is StrategyFixture {
+contract StrategyLiquidityTest is StrategyFixture {
     function setUp() public override {
         super.setUp();
     }
 
-    function testMigration(uint256 _amount) public {
+    function testManualClaimRewards(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
@@ -29,23 +32,20 @@ contract StrategyMigrationTest is StrategyFixture {
                 _amount = _amount / 1_000;
             }
             deal(address(want), user, _amount);
-
-            // Deposit to the vault and harvest
             vm.prank(user);
             want.approve(address(vault), _amount);
             vm.prank(user);
             vault.deposit(_amount);
+
+            assertEq(strategy.balanceOfEmissionToken(), 0); 
             skip(1);
             vm.prank(strategist);
             strategy.harvest();
-            assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            // Migrate to a new strategy
-            vm.prank(strategist);
-            Strategy newStrategy = Strategy(deployStrategy(address(vault), ERC20(address(want)).symbol()));
-            vm.prank(gov);
-            vault.migrateStrategy(address(strategy), address(newStrategy));
-            assertRelApproxEq(newStrategy.estimatedTotalAssets(), _amount, DELTA);
+            skip(5 days);
+            vm.prank(gov); // @dev getting a revert here when prank strategist (?)
+            strategy.claimRewards();
+            assertGe(strategy.balanceOfEmissionToken(), 0);
         }
     }
 }

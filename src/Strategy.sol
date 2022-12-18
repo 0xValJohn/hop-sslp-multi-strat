@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/Hop/ISwap.sol";
 import "./interfaces/Hop/IStakingRewards.sol";
 import "./interfaces/ySwaps/ITradeFactory.sol";
-import "forge-std/console2.sol"; // @debug for test logging only
+import "forge-std/console2.sol"; // @debug for test logging only - to be removed
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
@@ -97,43 +97,25 @@ contract Strategy is BaseStrategy {
         override
         returns (uint256 _profit, uint256 _loss, uint256 _debtPayment)
     {
-        if (claimableRewards() > 0) {
-            _claimRewards();
-        }
-
+        _claimRewards();
         uint256 _totalAssets = estimatedTotalAssets();
         uint256 _totalDebt = vault.strategies(address(this)).totalDebt;
-
-        // @note calculate intial profits - no underflow risk
-        unchecked {
-            _profit = _totalAssets > _totalDebt ? _totalAssets - _totalDebt : 0;
-        }
+        unchecked { _profit = _totalAssets > _totalDebt ? _totalAssets - _totalDebt : 0;}
 
         // @note free up _debtOutstanding + our profit
         uint256 _toLiquidate = _debtOutstanding + _profit;
         uint256 _wantBalance = balanceOfWant();
-
-        // @note liquidate some of the want
         if (_wantBalance < _toLiquidate) {
-            // @note liquidation can result in a profit depending on pool balance (slippage)
+            // @note liquidation can result in a profit depending on pool balance
             (uint256 _liquidationProfit, uint256 _liquidationLoss) = _removeliquidity(_toLiquidate);
-            // @note update the P&L to account for liquidation
-            _loss = _loss + _liquidationLoss;
+            _loss = _liquidationLoss;
             _profit = _profit + _liquidationProfit;
             _wantBalance = balanceOfWant();
         }
 
-        // @note calculate final p&L - no underflow risk
         unchecked {
-            (_loss = _loss + (_totalDebt > _totalAssets ? _totalDebt - _totalAssets : 0));
-        }
-
-        if (_loss > _profit) {
-            _loss = _loss - _profit;
-            _profit = 0;
-        } else {
-            _profit = _profit - _loss;
-            _loss = 0;
+            _profit = _profit > _loss ? _profit - _loss : 0;
+            _loss = _loss > _profit ? _loss - _profit : 0;           
         }
 
         // @note calculate _debtPayment
@@ -314,10 +296,6 @@ contract Strategy is BaseStrategy {
         return emissionToken.balanceOf(address(this));
     }
 
-    function claimableRewards() public view returns (uint256) {
-        return lpStaker.earned(address(this));
-    }
-
     function availableLiquidity() public view returns (uint256) {
         // @note returns amount of native asset
         return want.balanceOf(address(lpContract));
@@ -337,12 +315,12 @@ contract Strategy is BaseStrategy {
         return (_lpAmount * lpContract.getVirtualPrice()) / (10 ** (36 - wantDecimals));
     }
 
-    function _calculateRemoveLiquidityOneToken(uint256 _lpTokenAmount) internal returns (uint256) {
+    function _calculateRemoveLiquidityOneToken(uint256 _lpTokenAmount) internal view returns (uint256) {
         return lpContract.calculateRemoveLiquidityOneToken(address(this), _lpTokenAmount, 0);
     }
 
     function _claimRewards() internal {
-        lpStaker.getReward();
+        lpStaker.getReward();     
     }
 
     function _stake(uint256 _amountToStake) internal {

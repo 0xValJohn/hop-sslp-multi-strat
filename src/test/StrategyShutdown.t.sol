@@ -2,13 +2,11 @@
 pragma solidity ^0.8.15;
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
-
-// NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../Strategy.sol";
 import {IVault} from "../interfaces/Vault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "forge-std/console2.sol"; // for test logging only
+import "forge-std/console2.sol";
 
 contract StrategyShutdownTest is StrategyFixture {
     function setUp() public override {
@@ -17,8 +15,6 @@ contract StrategyShutdownTest is StrategyFixture {
 
     function testVaultShutdownCanWithdraw(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -31,9 +27,8 @@ contract StrategyShutdownTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
             simulateBalancedPool(_wantSymbol);
 
@@ -50,19 +45,19 @@ contract StrategyShutdownTest is StrategyFixture {
                 want.transfer(address(0), bal);
             }
 
-            // Harvest 1: Send funds through the strategy
+            // Harvest 1
             skip(7 hours);
             vm.prank(strategist);
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            // Harvest 2: Send funds through the strategy
+            // Harvest 2
             skip(30 days);
             vm.prank(strategist);
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            // Harvest 2: Send funds through the strategy
+            // Harvest 3
             skip(30 days);
             vm.prank(strategist);
             strategy.harvest();
@@ -84,8 +79,6 @@ contract StrategyShutdownTest is StrategyFixture {
 
     function testBasicShutdown(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -98,9 +91,8 @@ contract StrategyShutdownTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
             simulateBalancedPool(_wantSymbol);
 

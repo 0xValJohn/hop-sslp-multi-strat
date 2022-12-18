@@ -8,7 +8,7 @@ import {Vm} from "forge-std/Vm.sol";
 import {IVault} from "../../interfaces/Vault.sol";
 import {Strategy} from "../../Strategy.sol";
 import "../../interfaces/Hop/ISwap.sol";
-import "forge-std/console2.sol"; // @debug for test logging only
+import "forge-std/console2.sol";
 
 string constant vaultArtifact = "artifacts/Vault.json";
 
@@ -60,7 +60,7 @@ contract StrategyFixture is ExtendedTest {
 
         // want selector for strategy
         // string[4] memory _tokensToTest = ["DAI", "USDT", "USDC", "WETH"];
-        string[1] memory _tokensToTest = ["USDC"];
+        string[1] memory _tokensToTest = ["WETH"];
 
         for (uint8 i = 0; i < _tokensToTest.length; ++i) {
             string memory _tokenToTest = _tokensToTest[i];
@@ -76,7 +76,7 @@ contract StrategyFixture is ExtendedTest {
             vm.label(address(_strategy), string(abi.encodePacked(_tokenToTest, "Strategy")));
             vm.label(address(_want), _tokenToTest);
 
-            poolBalancesHelper(_tokenToTest);         
+            // poolBalancesHelper(_tokenToTest);         
         }
 
         // add more labels to make your traces readable
@@ -266,7 +266,7 @@ contract StrategyFixture is ExtendedTest {
         console2.log("_hToken.balanceOf(address(hopContract))", _hToken.balanceOf(address(hopContract)));
     }
 
-    function poolBalancesHelper(string memory _tokenSymbol) public {
+    function poolBalancesHelper(string memory _tokenSymbol) public view {
         IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
         IERC20 _want = IERC20(address(tokenAddrs[_tokenSymbol]));
         ISwap hopContract = ISwap(address(lpContract[_tokenSymbol]));

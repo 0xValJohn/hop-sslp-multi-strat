@@ -2,8 +2,6 @@
 pragma solidity ^0.8.15;
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
-
-// NOTE: if the name of the strat or file changes this needs to be updated
 import {Strategy} from "../Strategy.sol";
 import {IVault} from "../interfaces/Vault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -16,8 +14,6 @@ contract StrategyMigrationTest is StrategyFixture {
 
     function testRevokeStrategyFromVault(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -30,9 +26,8 @@ contract StrategyMigrationTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault and harvest
@@ -56,8 +51,6 @@ contract StrategyMigrationTest is StrategyFixture {
 
     function testRevokeStrategyFromStrategy(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -70,9 +63,8 @@ contract StrategyMigrationTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
 
             vm.prank(user);

@@ -1,27 +1,23 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.15;
-pragma abicoder v2;
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
+import {StrategyParams} from "../interfaces/Vault.sol";
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IVault} from "../interfaces/Vault.sol";
-import "forge-std/console2.sol"; // for test logging only
-
-// NOTE: if the name of the strat or file changes this needs to be updated
+import "forge-std/console2.sol";
 import {Strategy} from "../Strategy.sol";
 import "../interfaces/Hop/ISwap.sol";
 
 contract StrategyOperationsTest is StrategyFixture {
-    // setup is run on before each test
     function setUp() public override {
-        // setup vault
         super.setUp();
     }
 
     function testSetupVaultOK() public {
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -29,7 +25,6 @@ contract StrategyOperationsTest is StrategyFixture {
             IERC20 want = _assetFixture.want;
             uint8 _wantDecimals = ERC20(address(want)).decimals();
             string memory _wantSymbol = ERC20(address(want)).symbol();
-            //
             console2.log("address of vault", address(vault));
             assertTrue(address(0) != address(vault));
             assertEq(vault.token(), address(want));
@@ -37,9 +32,7 @@ contract StrategyOperationsTest is StrategyFixture {
         }
     }
 
-    // TODO: add additional check on strat params
     function testSetupStrategyOK() public {
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -47,18 +40,14 @@ contract StrategyOperationsTest is StrategyFixture {
             IERC20 want = _assetFixture.want;
             uint8 _wantDecimals = ERC20(address(want)).decimals();
             string memory _wantSymbol = ERC20(address(want)).symbol();
-            //
             console2.log("address of strategy", address(strategy));
             assertTrue(address(0) != address(strategy));
             assertEq(address(strategy.vault()), address(vault));
         }
     }
 
-    /// Test Operations
     function testStrategyOperation(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -71,9 +60,8 @@ contract StrategyOperationsTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
 
             uint256 balanceBefore = want.balanceOf(address(user));
@@ -92,10 +80,6 @@ contract StrategyOperationsTest is StrategyFixture {
             vm.prank(strategist);
             strategy.tend();
 
-            // @note simul. good withdraw conditions
-            simulateTransactionFee(_wantSymbol);
-            simulateWantDeposit(_wantSymbol);
-
             vm.prank(user);
             vault.withdraw();
 
@@ -105,8 +89,6 @@ contract StrategyOperationsTest is StrategyFixture {
 
     function testEmergencyExit(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -119,9 +101,8 @@ contract StrategyOperationsTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault
@@ -146,8 +127,6 @@ contract StrategyOperationsTest is StrategyFixture {
 
     function testProfitableHarvest(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -160,9 +139,8 @@ contract StrategyOperationsTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault
@@ -180,7 +158,8 @@ contract StrategyOperationsTest is StrategyFixture {
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            // TODO: Add some code before harvest #2 to simulate earning yield
+            // Add some code before harvest #2 to simulate earning yield
+            simulateTransactionFee(_wantSymbol);
 
             // Harvest 2: Realize profit
             skip(1);
@@ -188,17 +167,12 @@ contract StrategyOperationsTest is StrategyFixture {
             strategy.harvest();
             skip(6 hours);
 
-            // TODO: Uncomment the lines below
-            // uint256 profit = want.balanceOf(address(vault));
-            // assertGt(want.balanceOf(address(strategy)) + profit, _amount);
-            // assertGt(vault.pricePerShare(), beforePps)
+            assertGt(vault.pricePerShare(), beforePps);
         }
     }
 
     function testChangeDebt(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -211,9 +185,8 @@ contract StrategyOperationsTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault and harvest
@@ -236,21 +209,17 @@ contract StrategyOperationsTest is StrategyFixture {
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            // In order to pass these tests, you will need to implement prepareReturn.
-            // TODO: uncomment the following lines.
-            // vm.prank(gov);
-            // vault.updateStrategyDebtRatio(address(strategy), 5_000);
-            // skip(1);
-            // vm.prank(strategist);
-            // strategy.harvest();
-            // assertRelApproxEq(strategy.estimatedTotalAssets(), half, DELTA);
+            vm.prank(gov);
+            vault.updateStrategyDebtRatio(address(strategy), 5_000);
+            skip(1);
+            vm.prank(strategist);
+            strategy.harvest();
+            assertRelApproxEq(strategy.estimatedTotalAssets(), half, DELTA);
         }
     }
 
     function testProfitableHarvestOnDebtChange(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -263,9 +232,8 @@ contract StrategyOperationsTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault
@@ -283,14 +251,12 @@ contract StrategyOperationsTest is StrategyFixture {
             strategy.harvest();
             assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, DELTA);
 
-            // TODO: Add some code before harvest #2 to simulate earning yield
+            // Add some code before harvest #2 to simulate earning yield
+            simulateTransactionFee(_wantSymbol);
 
             vm.prank(gov);
             vault.updateStrategyDebtRatio(address(strategy), 5_000);
 
-            // In order to pass these tests, you will need to implement prepareReturn.
-            // TODO: uncomment the following lines.
-            /*
             // Harvest 2: Realize profit
             skip(1);
             vm.prank(strategist);
@@ -313,14 +279,11 @@ contract StrategyOperationsTest is StrategyFixture {
                 DELTA
             );
             assertGe(vault.pricePerShare(), beforePps);
-            */
         }
     }
 
     function testSweep(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -333,9 +296,8 @@ contract StrategyOperationsTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
 
             // Strategy want token doesn't work
@@ -376,14 +338,16 @@ contract StrategyOperationsTest is StrategyFixture {
             assertEq(tokenToSweep.balanceOf(user), 0);
             vm.prank(gov);
             strategy.sweep(address(tokenToSweep));
-            assertRelApproxEq(tokenToSweep.balanceOf(gov), tokenAmount + beforeBalance, DELTA);
+            assertRelApproxEq(
+                tokenToSweep.balanceOf(gov),
+                tokenAmount + beforeBalance,
+                DELTA
+            );
         }
     }
 
     function testTriggers(uint256 _amount) public {
         vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
         for (uint8 i = 0; i < assetFixtures.length; ++i) {
             AssetFixture memory _assetFixture = assetFixtures[i];
             IVault vault = _assetFixture.vault;
@@ -396,9 +360,8 @@ contract StrategyOperationsTest is StrategyFixture {
                 _amount = _amount / (10 ** _decimalDifference);
             }
             if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
+                _amount = _amount / 1_000;
             }
-            //
             deal(address(want), user, _amount);
 
             // Deposit to the vault and harvest
@@ -414,81 +377,6 @@ contract StrategyOperationsTest is StrategyFixture {
 
             strategy.harvestTrigger(0);
             strategy.tendTrigger(0);
-        }
-    }
-
-    function testLosses(uint256 _amount) public {
-        vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
-        for (uint8 i = 0; i < assetFixtures.length; ++i) {
-            AssetFixture memory _assetFixture = assetFixtures[i];
-            IVault vault = _assetFixture.vault;
-            Strategy strategy = _assetFixture.strategy;
-            IERC20 want = _assetFixture.want;
-            uint8 _wantDecimals = ERC20(address(want)).decimals();
-            string memory _wantSymbol = ERC20(address(want)).symbol();
-            if (_wantDecimals != 18) {
-                uint256 _decimalDifference = 18 - _wantDecimals;
-                _amount = _amount / (10 ** _decimalDifference);
-            }
-            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
-            }
-            //
-            deal(address(want), user, _amount);
-
-            // @todo add loss test
-        }
-    }
-
-    function testLimitedLiquiditWithProfit(uint256 _amount) public {
-        vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
-        for (uint8 i = 0; i < assetFixtures.length; ++i) {
-            AssetFixture memory _assetFixture = assetFixtures[i];
-            IVault vault = _assetFixture.vault;
-            Strategy strategy = _assetFixture.strategy;
-            IERC20 want = _assetFixture.want;
-            uint8 _wantDecimals = ERC20(address(want)).decimals();
-            string memory _wantSymbol = ERC20(address(want)).symbol();
-            if (_wantDecimals != 18) {
-                uint256 _decimalDifference = 18 - _wantDecimals;
-                _amount = _amount / (10 ** _decimalDifference);
-            }
-            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
-            }
-            //
-            deal(address(want), user, _amount);
-
-            // @todo add limited liq with profit test
-        }
-    }
-
-    function testLimitedLiquiditWithLoss(uint256 _amount) public {
-        vm.assume(_amount > minFuzzAmt && _amount < maxFuzzAmt);
-
-        // Logic for multi-want testing
-        for (uint8 i = 0; i < assetFixtures.length; ++i) {
-            AssetFixture memory _assetFixture = assetFixtures[i];
-            IVault vault = _assetFixture.vault;
-            Strategy strategy = _assetFixture.strategy;
-            IERC20 want = _assetFixture.want;
-            uint8 _wantDecimals = ERC20(address(want)).decimals();
-            string memory _wantSymbol = ERC20(address(want)).symbol();
-            if (_wantDecimals != 18) {
-                uint256 _decimalDifference = 18 - _wantDecimals;
-                _amount = _amount / (10 ** _decimalDifference);
-            }
-            if (keccak256(abi.encodePacked(_wantSymbol)) == keccak256(abi.encodePacked("WETH"))) {
-                _amount = _amount / 1_000; // fuzz amount modifier for WETH e.g. 100 WETH --> 0.1 ETH
-            }
-            //
-            deal(address(want), user, _amount);
-
-            // @todo add limited liq with loss test
         }
     }
 }
