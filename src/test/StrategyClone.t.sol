@@ -46,6 +46,7 @@ contract StrategyCloneTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
+                maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );
@@ -95,6 +96,7 @@ contract StrategyCloneTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
+                maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );
@@ -111,6 +113,7 @@ contract StrategyCloneTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
+                maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );
@@ -142,6 +145,7 @@ contract StrategyCloneTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
+                maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );
@@ -158,6 +162,7 @@ contract StrategyCloneTest is StrategyFixture {
                 rewards,
                 keeper,
                 maxSlippage[tokenSymbol],
+                maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
                 lpStaker[tokenSymbol]
             );

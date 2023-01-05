@@ -37,7 +37,7 @@ contract StrategyLiquidityTest is StrategyFixture {
             vm.prank(user);
             vault.deposit(_amount);
 
-            assertEq(strategy.balanceOfEmissionToken(), 0); 
+            assertEq(strategy.balanceOfRewardToken(), 0);
             skip(1);
             vm.prank(strategist);
             strategy.harvest();
@@ -45,7 +45,7 @@ contract StrategyLiquidityTest is StrategyFixture {
             skip(5 days);
             vm.prank(gov); // @dev getting a revert here when prank strategist (?)
             strategy.claimRewards();
-            assertGe(strategy.balanceOfEmissionToken(), 0);
+            assertGe(strategy.balanceOfRewardToken(), 0);
         }
     }
 }

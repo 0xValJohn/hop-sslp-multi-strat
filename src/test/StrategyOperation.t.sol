@@ -262,22 +262,14 @@ contract StrategyOperationsTest is StrategyFixture {
             vm.prank(strategist);
             strategy.harvest();
             //Make sure we have updated the debt ratio of the strategy
-            assertRelApproxEq(
-                strategy.estimatedTotalAssets(), 
-                _amount / 2, 
-                DELTA
-            );
+            assertRelApproxEq(strategy.estimatedTotalAssets(), _amount / 2, DELTA);
             skip(6 hours);
 
             //Make sure we have updated the debt and made a profit
             uint256 vaultBalance = want.balanceOf(address(vault));
             StrategyParams memory params = vault.strategies(address(strategy));
             //Make sure we got back profit + half the deposit
-            assertRelApproxEq(
-                _amount / 2 + params.totalGain, 
-                vaultBalance, 
-                DELTA
-            );
+            assertRelApproxEq(_amount / 2 + params.totalGain, vaultBalance, DELTA);
             assertGe(vault.pricePerShare(), beforePps);
         }
     }
@@ -338,11 +330,7 @@ contract StrategyOperationsTest is StrategyFixture {
             assertEq(tokenToSweep.balanceOf(user), 0);
             vm.prank(gov);
             strategy.sweep(address(tokenToSweep));
-            assertRelApproxEq(
-                tokenToSweep.balanceOf(gov),
-                tokenAmount + beforeBalance,
-                DELTA
-            );
+            assertRelApproxEq(tokenToSweep.balanceOf(gov), tokenAmount + beforeBalance, DELTA);
         }
     }
 

@@ -27,6 +27,7 @@ contract StrategyFixture is ExtendedTest {
     AssetFixture[] public assetFixtures;
 
     mapping(string => uint256) public maxSlippage;
+    mapping(string => uint256) public maxSingleDeposit;
     mapping(string => address) public lpStaker;
     mapping(string => address) public lpContract;
     mapping(string => address) public tokenAddrs;
@@ -46,12 +47,13 @@ contract StrategyFixture is ExtendedTest {
     // @dev maximum amount of want tokens deposited based on @maxDollarNotional
     uint256 public maxFuzzAmt = 1_000_000 ether; // keeping in mind the WETH mod --> 100 WETH --> 0.1 WETH
     // @dev maximum dollar amount of tokens to be deposited
-    uint256 public constant DELTA = 10**1;
+    uint256 public constant DELTA = 10 ** 1;
 
     function setUp() public virtual {
         _setTokenPrices();
         _setTokenAddrs();
         _setMaxSlippage();
+        _setMaxSingleDeposit();
         _setLpContract();
         _setLpStaker();
         _setHToken();
@@ -60,7 +62,7 @@ contract StrategyFixture is ExtendedTest {
 
         // want selector for strategy
         // string[4] memory _tokensToTest = ["DAI", "USDT", "USDC", "WETH"];
-        string[1] memory _tokensToTest = ["WETH"];
+        string[1] memory _tokensToTest = ["USDC"];
 
         for (uint8 i = 0; i < _tokensToTest.length; ++i) {
             string memory _tokenToTest = _tokensToTest[i];
@@ -76,7 +78,7 @@ contract StrategyFixture is ExtendedTest {
             vm.label(address(_strategy), string(abi.encodePacked(_tokenToTest, "Strategy")));
             vm.label(address(_want), _tokenToTest);
 
-            // poolBalancesHelper(_tokenToTest);         
+            // poolBalancesHelper(_tokenToTest);
         }
 
         // add more labels to make your traces readable
@@ -118,6 +120,7 @@ contract StrategyFixture is ExtendedTest {
         Strategy _strategy = new Strategy(
             _vault,
             maxSlippage[_tokenSymbol],
+            maxSingleDeposit[_tokenSymbol],
             lpContract[_tokenSymbol],
             lpStaker[_tokenSymbol]
             );
@@ -189,6 +192,13 @@ contract StrategyFixture is ExtendedTest {
         maxSlippage["USDT"] = 100;
         maxSlippage["USDC"] = 100;
         maxSlippage["DAI"] = 100;
+    }
+
+    function _setMaxSingleDeposit() internal {
+        maxSingleDeposit["WETH"] = 5_000_000;
+        maxSingleDeposit["USDT"] = 50_000_000;
+        maxSingleDeposit["USDC"] = 50_000_000;
+        maxSingleDeposit["DAI"] = 50_000_000;
     }
 
     function _setTokenPrices() internal {
@@ -270,7 +280,11 @@ contract StrategyFixture is ExtendedTest {
         IERC20 _hToken = IERC20(address(hToken[_tokenSymbol]));
         IERC20 _want = IERC20(address(tokenAddrs[_tokenSymbol]));
         ISwap hopContract = ISwap(address(lpContract[_tokenSymbol]));
-        console2.log("{poolBalancesHelper} _want / _hToken", _tokenSymbol, _want.balanceOf(address(hopContract))/(10 ** ERC20(address(_want)).decimals()), _hToken.balanceOf(address(hopContract))/(10 ** ERC20(address(_hToken)).decimals()));
+        console2.log(
+            "{poolBalancesHelper} _want / _hToken",
+            _tokenSymbol,
+            _want.balanceOf(address(hopContract)) / (10 ** ERC20(address(_want)).decimals()),
+            _hToken.balanceOf(address(hopContract)) / (10 ** ERC20(address(_hToken)).decimals())
+        );
     }
-
 }
