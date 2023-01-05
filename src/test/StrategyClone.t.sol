@@ -62,8 +62,12 @@ contract StrategyCloneTest is StrategyFixture {
 
             vm.prank(strategist);
             skip(60);
+            // tend
             strategy.tend();
-            poolBalancesHelper(_wantSymbol);
+
+            simulateTransactionFee(_wantSymbol);
+            simulateWantDeposit(_wantSymbol);
+
             vm.prank(user);
             vault.withdraw();
 

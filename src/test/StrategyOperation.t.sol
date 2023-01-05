@@ -80,6 +80,9 @@ contract StrategyOperationsTest is StrategyFixture {
             vm.prank(strategist);
             strategy.tend();
 
+            simulateTransactionFee(_wantSymbol);
+            simulateWantDeposit(_wantSymbol);
+
             vm.prank(user);
             vault.withdraw();
 

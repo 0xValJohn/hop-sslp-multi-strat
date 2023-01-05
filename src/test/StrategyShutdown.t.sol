@@ -68,6 +68,7 @@ contract StrategyShutdownTest is StrategyFixture {
             vault.setEmergencyShutdown(true);
 
             simulateTransactionFee(_wantSymbol);
+            simulateWantDeposit(_wantSymbol);
 
             // Withdraw (does it work, do you get what you expect)
             vm.prank(user);
