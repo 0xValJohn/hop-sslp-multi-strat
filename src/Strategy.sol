@@ -119,9 +119,23 @@ contract Strategy is BaseStrategy {
         uint256 _toLiquidate = _debtOutstanding + _profit;
         uint256 _wantBalance = balanceOfWant();
 
+        // @note _loss from withdrawals are recognised here
         if (_toLiquidate > _wantBalance) {
+            // @test loss of 100 from withdraw
             (, _loss) = withdrawSome(_toLiquidate - _wantBalance);
         }
+
+        if (_loss > _profit) {
+            unchecked {
+                _loss = _loss - _profit;
+            }
+            _profit = 0;
+        } else {
+            unchecked {
+                _profit = _profit - _loss;
+            }
+            _loss = 0;
+        }    
 
         uint256 _liquidWant = balanceOfWant();
 
@@ -133,14 +147,6 @@ contract Strategy is BaseStrategy {
             // @note enough to pay for all profit and _debtOutstanding (partial or full)
         } else {
             _debtPayment = Math.min(_liquidWant - _profit, _debtOutstanding);
-        }
-
-        if (_loss > _profit) {
-            _loss = _loss - _profit;
-            _profit = 0;
-        } else {
-            _profit = _profit - _loss;
-            _loss = 0;
         }
     }
 
