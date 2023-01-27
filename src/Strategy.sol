@@ -128,11 +128,11 @@ contract Strategy is BaseStrategy {
             unchecked { _toLiquidate -= _wantBalance; }
             (, uint256 _withdrawLoss) = withdrawSome(_toLiquidate);
 
-            if(withdrawalLoss < _profit){
-                unchecked { _profit -= withdrawalLoss; }
+            if(_withdrawLoss < _profit){
+                unchecked { _profit -= _withdrawLoss; }
             }
             else {
-                unchecked { _loss = _loss + withdrawalLoss - _profit; }
+                unchecked { _loss = _loss + _withdrawLoss - _profit; }
                 _profit = 0;
             }
 
