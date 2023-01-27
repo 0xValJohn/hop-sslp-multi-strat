@@ -121,8 +121,7 @@ contract Strategy is BaseStrategy {
             unchecked { _loss = _totalDebt - _totalAssets; }
         }
 
-        // @note free up _debtOutstanding + our profit
-        uint256 _toLiquidate = _debtOutstanding + _profit;
+        uint256 _toLiquidate = _debtPayment + _profit;
 
         // @note _loss from withdrawals are recognised here
         if (_toLiquidate > _wantBalance) {
