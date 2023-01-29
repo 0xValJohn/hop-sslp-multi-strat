@@ -269,7 +269,7 @@ contract Strategy is BaseStrategy {
         // @note unstake LP token if required
         uint256 _balanceOfUnstakedLPToken = balanceOfUnstakedLPToken();
         if (_lpAmount > _balanceOfUnstakedLPToken) {
-            _unstake(_lpAmount - _balanceOfUnstakedLPToken);
+            _unstake(Math.min(_lpAmount - _balanceOfUnstakedLPToken, balanceOfStakedLPToken()));
         }
 
         _lpAmount = Math.min(balanceOfUnstakedLPToken(), _lpAmount); // @note can't remove more than we have
