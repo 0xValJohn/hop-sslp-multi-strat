@@ -142,7 +142,7 @@ contract Strategy is BaseStrategy {
                 _profit = _liquidWant;
                 _debtPayment = 0;
             } else if (_liquidWant < _debtPayment + _profit) {
-                _debtPayment = liquidWant - _profit;
+                _debtPayment = _liquidWant - _profit;
             }
         }
     }
