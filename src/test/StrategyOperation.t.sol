@@ -170,7 +170,10 @@ contract StrategyOperationsTest is StrategyFixture {
             strategy.harvest();
             skip(6 hours);
 
-            assertGt(vault.pricePerShare(), beforePps);
+            assertGe(vault.pricePerShare(), beforePps);
+
+            // Make sure we have accrued reward tokens
+            assertGt(strategy.balanceOfRewardToken(), 0);
         }
     }
 
@@ -274,6 +277,9 @@ contract StrategyOperationsTest is StrategyFixture {
             //Make sure we got back profit + half the deposit
             assertRelApproxEq(_amount / 2 + params.totalGain, vaultBalance, DELTA);
             assertGe(vault.pricePerShare(), beforePps);
+
+            // Make sure we have accrued reward tokens
+            assertGt(strategy.balanceOfRewardToken(), 0);
         }
     }
 

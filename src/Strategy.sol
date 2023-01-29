@@ -109,44 +109,41 @@ contract Strategy is BaseStrategy {
         returns (uint256 _profit, uint256 _loss, uint256 _debtPayment)
     {
         _claimRewards();
+        _debtPayment = _debtOutstanding;
         uint256 _totalAssets = estimatedTotalAssets();
         uint256 _totalDebt = vault.strategies(address(this)).totalDebt;
-        unchecked {
-            _profit = _totalAssets > _totalDebt ? _totalAssets - _totalDebt : 0;
+        uint256 _wantBalance = balanceOfWant();
+
+        if (_totalDebt < _totalAssets){
+            unchecked { _profit = _totalAssets - _totalDebt; }
+        }
+        else {
+            unchecked { _loss = _totalDebt - _totalAssets; }
         }
 
-        // @note free up _debtOutstanding + our profit
-        uint256 _toLiquidate = _debtOutstanding + _profit;
-        uint256 _wantBalance = balanceOfWant();
+        uint256 _toLiquidate = _debtPayment + _profit;
 
         // @note _loss from withdrawals are recognised here
         if (_toLiquidate > _wantBalance) {
-            // @test loss of 100 from withdraw
-            (, _loss) = withdrawSome(_toLiquidate - _wantBalance);
-        }
+            unchecked { _toLiquidate -= _wantBalance; }
+            (, uint256 _withdrawLoss) = withdrawSome(_toLiquidate);
 
-        if (_loss > _profit) {
-            unchecked {
-                _loss = _loss - _profit;
+            if(_withdrawLoss < _profit){
+                unchecked { _profit -= _withdrawLoss; }
             }
-            _profit = 0;
-        } else {
-            unchecked {
-                _profit = _profit - _loss;
+            else {
+                unchecked { _loss = _loss + _withdrawLoss - _profit; }
+                _profit = 0;
             }
-            _loss = 0;
-        }    
 
-        uint256 _liquidWant = balanceOfWant();
-
-        // @note calculate final p&l and _debtPayment
-        // @note enough to pay profit (partial or full) only
-        if (_liquidWant <= _profit) {
-            _profit = _liquidWant;
-            _debtPayment = 0;
-            // @note enough to pay for all profit and _debtOutstanding (partial or full)
-        } else {
-            _debtPayment = Math.min(_liquidWant - _profit, _debtOutstanding);
+            uint256 _liquidWant = balanceOfWant();
+            
+            if (_liquidWant <= _profit) {
+                _profit = _liquidWant;
+                _debtPayment = 0;
+            } else if (_liquidWant < _debtPayment + _profit) {
+                _debtPayment = _liquidWant - _profit;
+            }
         }
     }
 
@@ -272,7 +269,7 @@ contract Strategy is BaseStrategy {
         // @note unstake LP token if required
         uint256 _balanceOfUnstakedLPToken = balanceOfUnstakedLPToken();
         if (_lpAmount > _balanceOfUnstakedLPToken) {
-            _unstake(_lpAmount - _balanceOfUnstakedLPToken);
+            _unstake(Math.min(_lpAmount - _balanceOfUnstakedLPToken, balanceOfStakedLPToken()));
         }
 
         _lpAmount = Math.min(balanceOfUnstakedLPToken(), _lpAmount); // @note can't remove more than we have
