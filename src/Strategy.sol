@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/Hop/ISwap.sol";
 import "./interfaces/Hop/IStakingRewards.sol";
 import "./interfaces/ySwaps/ITradeFactory.sol";
-import "forge-std/console2.sol"; // @debug for test logging only - to be removed
 
 interface IVelodromeRouter {
     function swapExactTokensForTokensSimple(

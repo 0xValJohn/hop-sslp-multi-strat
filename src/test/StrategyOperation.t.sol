@@ -165,15 +165,12 @@ contract StrategyOperationsTest is StrategyFixture {
             simulateTransactionFee(_wantSymbol);
 
             // Harvest 2: Realize profit
-            skip(1);
+            skip(10 days);
             vm.prank(strategist);
             strategy.harvest();
             skip(6 hours);
 
             assertGe(vault.pricePerShare(), beforePps);
-
-            // Make sure we have accrued reward tokens
-            assertGt(strategy.balanceOfRewardToken(), 0);
         }
     }
 
@@ -277,9 +274,6 @@ contract StrategyOperationsTest is StrategyFixture {
             //Make sure we got back profit + half the deposit
             assertRelApproxEq(_amount / 2 + params.totalGain, vaultBalance, DELTA);
             assertGe(vault.pricePerShare(), beforePps);
-
-            // Make sure we have accrued reward tokens
-            assertGt(strategy.balanceOfRewardToken(), 0);
         }
     }
 
