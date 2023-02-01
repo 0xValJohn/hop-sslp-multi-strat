@@ -10,6 +10,18 @@ import "./interfaces/Hop/IStakingRewards.sol";
 import "./interfaces/ySwaps/ITradeFactory.sol";
 import "forge-std/console2.sol"; // @debug for test logging only - to be removed
 
+interface IVelodromeRouter {
+    function swapExactTokensForTokensSimple(
+        uint amountIn,
+        uint amountOutMin,
+        address tokenFrom,
+        address tokenTo,
+        bool stable,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+}
+
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
@@ -30,6 +42,8 @@ contract Strategy is BaseStrategy {
     uint256 internal constant MAX_BIPS = 10_000;
     uint256 internal wantDecimals;
 
+    address internal constant velodromeRouter = 0xa132DAB612dB5cB9fC9Ac426A0Cc215A3423F9c9;
+
     constructor(address _vault, uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker)
         public
         BaseStrategy(_vault)
@@ -48,6 +62,7 @@ contract Strategy is BaseStrategy {
         lpToken = IERC20(lpContract.swapStorage().lpToken);
         rewardToken = IERC20(lpStaker.rewardsToken());
         IERC20(want).safeApprove(address(lpContract), max);
+        IERC20(rewardToken ).safeApprove(address(velodromeRouter), max);
         IERC20(lpToken).safeApprove(address(lpContract), max);
         IERC20(lpToken).safeApprove(address(lpStaker), max);
     }
@@ -109,6 +124,12 @@ contract Strategy is BaseStrategy {
         returns (uint256 _profit, uint256 _loss, uint256 _debtPayment)
     {
         _claimRewards();
+
+        uint256 _balanceOfRewardToken = balanceOfRewardToken();
+        if (_balanceOfRewardToken > 0) {
+            _sell(_balanceOfRewardToken);
+        }
+
         _debtPayment = _debtOutstanding;
         uint256 _totalAssets = estimatedTotalAssets();
         uint256 _totalDebt = vault.strategies(address(this)).totalDebt;
@@ -275,6 +296,21 @@ contract Strategy is BaseStrategy {
         _lpAmount = Math.min(balanceOfUnstakedLPToken(), _lpAmount); // @note can't remove more than we have
         uint256 _minWantOut = (_lpAmount * (MAX_BIPS - maxSlippage) / MAX_BIPS) / (10 ** (18 - wantDecimals));
         lpContract.removeLiquidityOneToken(_lpAmount, 0, _minWantOut, max);
+    }
+
+    // Sells HOP for want
+    function _sell(uint256 _rewardTokenAmount) internal {      
+        if (_rewardTokenAmount > 1e17) {
+            IVelodromeRouter(velodromeRouter).swapExactTokensForTokensSimple(
+                _rewardTokenAmount, // amountIn
+                0, // amountOutMin
+                address(rewardToken), // tokenFrom
+                address(want), // tokenTo
+                false, // stable
+                address(this), // to
+                block.timestamp // deadline
+            );
+        }
     }
 
     function balanceOfWant() public view returns (uint256) {
