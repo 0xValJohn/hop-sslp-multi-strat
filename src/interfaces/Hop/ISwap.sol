@@ -45,4 +45,6 @@ interface ISwap {
         returns (uint256);
 
     function swapStorage() external view returns (SwapStorage memory);
+
+    function getToken(uint8 index) external view returns (IERC20);
 }

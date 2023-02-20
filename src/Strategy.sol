@@ -56,10 +56,12 @@ contract Strategy is BaseStrategy {
         wantDecimals = IERC20Metadata(address(want)).decimals();
         maxSlippage = _maxSlippage;
         maxSingleDeposit = _maxSingleDeposit;
+        healthCheck = 0xDDCea799fF1699e98EDF118e0629A974Df7DF012;
         lpContract = ISwap(_lpContract);
         lpStaker = IStakingRewards(_lpStaker);
         lpToken = IERC20(lpContract.swapStorage().lpToken);
         rewardToken = IERC20(lpStaker.rewardsToken());
+        require(address(lpContract.getToken(0)) == address(want), "!want");
         IERC20(want).safeApprove(address(lpContract), max);
         IERC20(rewardToken ).safeApprove(address(velodromeRouter), max);
         IERC20(lpToken).safeApprove(address(lpContract), max);
