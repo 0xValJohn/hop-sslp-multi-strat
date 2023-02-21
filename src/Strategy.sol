@@ -56,7 +56,7 @@ contract Strategy is BaseStrategy {
         wantDecimals = IERC20Metadata(address(want)).decimals();
         maxSlippage = _maxSlippage;
         maxSingleDeposit = _maxSingleDeposit;
-        healthCheck = 0xDDCea799fF1699e98EDF118e0629A974Df7DF012;
+        healthCheck = 0x3d8F58774611676fd196D26149C71a9142C45296;
         lpContract = ISwap(_lpContract);
         lpStaker = IStakingRewards(_lpStaker);
         lpToken = IERC20(lpContract.swapStorage().lpToken);
