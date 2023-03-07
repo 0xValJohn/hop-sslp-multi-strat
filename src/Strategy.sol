@@ -296,7 +296,6 @@ contract Strategy is BaseStrategy {
         lpContract.removeLiquidityOneToken(_lpAmount, 0, _minWantOut, max);
     }
 
-    // Takes a json string to define the hop --> want route for velodrome
     function setSellRewardsRoute(IVelodromeRouter.Route[] memory _routes) external onlyVaultManagers {
         delete sellRewardsRoute; // clear the array
         for (uint256 i = 0; i < _routes.length; i++) {

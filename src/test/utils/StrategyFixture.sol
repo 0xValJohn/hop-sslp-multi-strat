@@ -68,7 +68,7 @@ contract StrategyFixture is ExtendedTest {
 
         // want selector for strategy
         // string[4] memory _tokensToTest = ["DAI", "USDT", "USDC", "WETH"];
-        string[1] memory _tokensToTest = ["USDC"];
+        string[1] memory _tokensToTest = ["USDT"];
         
         for (uint8 i = 0; i < _tokensToTest.length; ++i) {
             string memory _tokenToTest = _tokensToTest[i];
@@ -221,8 +221,14 @@ contract StrategyFixture is ExtendedTest {
         // USDT
         route = IVelodromeRouter.Route({
             from: tokenAddrs["WETH"], 
-            to: tokenAddrs["USDT"], 
+            to: tokenAddrs["USDC"], 
             stable: false
+        });
+        veloRoute["USDT"].push(route);
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["USDC"], 
+            to: tokenAddrs["USDT"], 
+            stable: true
         });
         veloRoute["USDT"].push(route);
 
@@ -237,8 +243,14 @@ contract StrategyFixture is ExtendedTest {
         // DAI
         route = IVelodromeRouter.Route({
             from: tokenAddrs["WETH"], 
-            to: tokenAddrs["DAI"], 
+            to: tokenAddrs["USDC"], 
             stable: false
+        });
+        veloRoute["DAI"].push(route);
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["USDC"], 
+            to: tokenAddrs["DAI"], 
+            stable: true
         });
         veloRoute["DAI"].push(route);
     }
