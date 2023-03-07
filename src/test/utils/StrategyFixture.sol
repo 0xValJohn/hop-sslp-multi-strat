@@ -2,6 +2,7 @@
 pragma solidity ^0.8.15;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
 import {Vm} from "forge-std/Vm.sol";
@@ -9,14 +10,8 @@ import {IVault} from "../../interfaces/Vault.sol";
 import {Strategy} from "../../Strategy.sol";
 import "../../interfaces/Hop/ISwap.sol";
 import "forge-std/console2.sol";
-
-interface IVelodromeRouter {
-    struct Route {
-        address from;
-        address to;
-        bool stable;
-    }
-}
+import "forge-std/console.sol";
+import {IVelodromeRouter} from "../../interfaces/Velodrome.sol";
 
 string constant vaultArtifact = "artifacts/Vault.json";
 
@@ -59,6 +54,7 @@ contract StrategyFixture is ExtendedTest {
     uint256 public constant DELTA = 10 ** 1;
 
     function setUp() public virtual {
+        
         _setTokenPrices();
         _setTokenAddrs();
         _setMaxSlippage();
@@ -67,19 +63,19 @@ contract StrategyFixture is ExtendedTest {
         _setLpStaker();
         _setHToken();
         _setVeloRoute();
-
+        
         weth = IERC20(tokenAddrs["WETH"]);
 
         // want selector for strategy
         // string[4] memory _tokensToTest = ["DAI", "USDT", "USDC", "WETH"];
         string[1] memory _tokensToTest = ["USDC"];
-
+        
         for (uint8 i = 0; i < _tokensToTest.length; ++i) {
             string memory _tokenToTest = _tokensToTest[i];
             IERC20 _want = IERC20(tokenAddrs[_tokenToTest]);
-
+            
             (address _vault, address _strategy) = deployVaultAndStrategy(
-                address(_want), _tokenToTest, gov, rewards, "", "", guardian, management, keeper, strategist
+                address(_want), _tokenToTest, gov, rewards, IERC20Metadata(address(_want)).name(), IERC20Metadata(address(_want)).symbol(), guardian, management, keeper, strategist
             );
 
             assetFixtures.push(AssetFixture(IVault(_vault), Strategy(_strategy), _want));
@@ -87,8 +83,6 @@ contract StrategyFixture is ExtendedTest {
             vm.label(address(_vault), string(abi.encodePacked(_tokenToTest, "Vault")));
             vm.label(address(_strategy), string(abi.encodePacked(_tokenToTest, "Strategy")));
             vm.label(address(_want), _tokenToTest);
-
-            // poolBalancesHelper(_tokenToTest);
         }
 
         // add more labels to make your traces readable
@@ -127,6 +121,7 @@ contract StrategyFixture is ExtendedTest {
 
     // Deploys a strategy
     function deployStrategy(address _vault, string memory _tokenSymbol) public returns (address) {
+        
         Strategy _strategy = new Strategy(
             _vault,
             maxSlippage[_tokenSymbol],
@@ -134,7 +129,7 @@ contract StrategyFixture is ExtendedTest {
             lpContract[_tokenSymbol],
             lpStaker[_tokenSymbol],
             veloRoute[_tokenSymbol]
-            );
+        );
 
         return address(_strategy);
     }
@@ -158,6 +153,15 @@ contract StrategyFixture is ExtendedTest {
         vm.prank(_strategist);
         _strategyAddr = deployStrategy(_vaultAddr, _tokenSymbol);
         Strategy _strategy = Strategy(_strategyAddr);
+
+        IVelodromeRouter.Route[] memory memoryRoutes = new IVelodromeRouter.Route[](veloRoute[_tokenSymbol].length);
+
+        for (uint i = 0; i < veloRoute[_tokenSymbol].length; i++) {
+            memoryRoutes[i] = veloRoute[_tokenSymbol][i];
+        }
+
+        vm.prank(_gov);
+        _strategy.setSellRewardsRoute(memoryRoutes);
 
         vm.prank(_strategist);
         _strategy.setKeeper(_keeper);
@@ -200,10 +204,43 @@ contract StrategyFixture is ExtendedTest {
     // set optimal route for selling HOP --> want on Velodrome
     // (address,address,bool)[]
     function _setVeloRoute() internal {
-        veloRoute["WETH"] = '{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x3c8b650257cfb5f272f799f5e2b4e65093a11a05","stable":false}'; 
-        veloRoute["USDT"] = '{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false},{"from":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","to":"0x94b008aA00579c1307B0EF2c499aD98a8ce58e58","stable":true}';
-        veloRoute["USDC"] = '{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false}';
-        veloRoute["DAI"] = '{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false},{"from":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","to":"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1","stable":true}';
+        address HOP = 0xc5102fE9359FD9a28f877a67E36B0F050d81a3CC;
+
+        // WETH
+        IVelodromeRouter.Route memory route = IVelodromeRouter.Route({
+            from: HOP, 
+            to: tokenAddrs["WETH"], 
+            stable: false
+        });
+        // All tokens have this common route
+        veloRoute["WETH"].push(route);
+        veloRoute["USDT"].push(route);
+        veloRoute["USDC"].push(route);
+        veloRoute["DAI"].push(route);
+
+        // USDT
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["WETH"], 
+            to: tokenAddrs["USDT"], 
+            stable: false
+        });
+        veloRoute["USDT"].push(route);
+
+        // USDC
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["WETH"], 
+            to: tokenAddrs["USDC"], 
+            stable: false
+        });
+        veloRoute["USDC"].push(route);
+
+        // DAI
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["WETH"], 
+            to: tokenAddrs["DAI"], 
+            stable: false
+        });
+        veloRoute["DAI"].push(route);
     }
     /////////////////////////////////////////////////////////////////
 

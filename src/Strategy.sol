@@ -8,21 +8,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/Hop/ISwap.sol";
 import "./interfaces/Hop/IStakingRewards.sol";
 import "./interfaces/ySwaps/ITradeFactory.sol";
-
-interface IVelodromeRouter {
-    struct Route {
-        address from;
-        address to;
-        bool stable;
-    }
-    function swapExactTokensForTokens(
-        uint amountIn,
-        uint amountOutMin,
-        Route[] calldata routes,
-        address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
-}
+import {IVelodromeRouter} from "./interfaces/Velodrome.sol";
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
@@ -72,9 +58,7 @@ contract Strategy is BaseStrategy {
         IERC20(lpToken).safeApprove(address(lpContract), max);
         IERC20(lpToken).safeApprove(address(lpStaker), max);
 
-        // define the hop --> want route for velodrome
-        // iterate over _routes and add each route to sellRewardsRoute
-        for (uint256 i = 0; i < _routes.length; i++) {
+        for (uint i = 0; i < _routes.length; i++) {
             sellRewardsRoute.push(_routes[i]);
         }
     }
@@ -313,7 +297,7 @@ contract Strategy is BaseStrategy {
     }
 
     // Takes a json string to define the hop --> want route for velodrome
-    function setSellRewardsRoute(IVelodromeRouter.Route[] calldata _routes) external onlyVaultManagers {
+    function setSellRewardsRoute(IVelodromeRouter.Route[] memory _routes) external onlyVaultManagers {
         delete sellRewardsRoute; // clear the array
         for (uint256 i = 0; i < _routes.length; i++) {
             sellRewardsRoute.push(_routes[i]);
