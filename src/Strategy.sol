@@ -47,22 +47,16 @@ contract Strategy is BaseStrategy {
 
     address internal constant velodromeRouter = 0xa132DAB612dB5cB9fC9Ac426A0Cc215A3423F9c9;
 
-    struct route {
-        address from;
-        address to;
-        bool stable;
-    }
+    route[] public sellRewardsRoute;
 
-    route[] public routes;
-
-    constructor(address _vault, uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, string memory _sellRewardsRoute)
+    constructor(address _vault, uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, string memory _routes)
         public
         BaseStrategy(_vault)
     {
-        _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _sellRewardsRoute);
+        _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _routes);
     }
 
-    function _initializeStrategy(uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, string memory _sellRewardsRoute) internal {
+    function _initializeStrategy(uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, string memory _routes) internal {
         minReportDelay = 21 days; // time to trigger harvesting by keeper depending on gas base fee
         maxReportDelay = 100 days; // time to trigger haresting by keeper no matter what
         wantDecimals = IERC20Metadata(address(want)).decimals();
@@ -80,10 +74,10 @@ contract Strategy is BaseStrategy {
         IERC20(lpToken).safeApprove(address(lpStaker), max);
 
         // define the hop --> want route for velodrome
-        bytes memory _sellRewardsRouteData = bytes(_sellRewardsRoute);
-        route[] memory sellRewardsRoute = abi.decode(_sellRewardsRouteData, (route[]));
-        for (uint256 i = 0; i < sellRewardsRoute.length; i++) {
-            routes.push(sellRewardsRoute[i]);
+        // iterate over _routes and add each route to sellRewardsRoute
+        route[] memory routes = abi.decode(bytes(_routes), (route[]));
+        for (uint256 i = 0; i < routes.length; i++) {
+            sellRewardsRoute.push(routes[i]);
         }
     }
 
@@ -96,10 +90,10 @@ contract Strategy is BaseStrategy {
         uint256 _maxSingleDeposit,
         address _lpContract,
         address _lpStaker,
-        string memory _sellRewardsRoute
+        string memory _routes
     ) external {
         _initialize(_vault, _strategist, _rewards, _keeper);
-        _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _sellRewardsRoute);
+        _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _routes);
     }
 
     function clone(
@@ -111,7 +105,7 @@ contract Strategy is BaseStrategy {
         uint256 _maxSingleDeposit,
         address _lpContract,
         address _lpStaker,
-        string memory _sellRewardsRoute
+        string memory _routes
     ) external returns (address newStrategy) {
         require(isOriginal, "!clone");
         bytes20 addressBytes = bytes20(address(this));
@@ -122,7 +116,7 @@ contract Strategy is BaseStrategy {
             mstore(add(clone_code, 0x28), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
             newStrategy := create(0, clone_code, 0x37)
         }
-        Strategy(newStrategy).initialize(_vault, _strategist, _rewards, _keeper, _maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _sellRewardsRoute);
+        Strategy(newStrategy).initialize(_vault, _strategist, _rewards, _keeper, _maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _routes);
 
         emit Cloned(newStrategy);
     }
@@ -321,12 +315,11 @@ contract Strategy is BaseStrategy {
     }
 
     // Takes a json string to define the hop --> want route for velodrome
-    function setSellRewardsRoute(string memory json) external onlyVaultManagers {
-        bytes memory jsonData = bytes(json);
-        require(jsonData.length > 0, "Empty input");
-        sellRewardsRoute = abi.decode(jsonData, (route[]));
-        for (uint256 i = 0; i < sellRewardsRoute.length; i++) {
-            routes.push(sellRewardsRoute[i]);
+    function setSellRewardsRoute(string memory _routes) external onlyVaultManagers {
+        delete sellRewardsRoute; // clear the array
+        route[] memory routes = abi.decode(bytes(_routes), (route[]));
+        for (uint256 i = 0; i < routes.length; i++) {
+            sellRewardsRoute.push(routes[i]);
         }
     }
 
