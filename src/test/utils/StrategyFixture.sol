@@ -33,6 +33,8 @@ contract StrategyFixture is ExtendedTest {
     mapping(string => address) public tokenAddrs;
     mapping(string => uint256) public tokenPrices;
     mapping(string => address) public hToken;
+    mapping(string => string) public veloRoute;
+
 
     address public gov = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
     address public user = address(1);
@@ -57,6 +59,7 @@ contract StrategyFixture is ExtendedTest {
         _setLpContract();
         _setLpStaker();
         _setHToken();
+        _setVeloRoute();
 
         weth = IERC20(tokenAddrs["WETH"]);
 
@@ -122,7 +125,8 @@ contract StrategyFixture is ExtendedTest {
             maxSlippage[_tokenSymbol],
             maxSingleDeposit[_tokenSymbol],
             lpContract[_tokenSymbol],
-            lpStaker[_tokenSymbol]
+            lpStaker[_tokenSymbol],
+            veloRoute[_tokenSymbol]
             );
 
         return address(_strategy);
@@ -184,6 +188,15 @@ contract StrategyFixture is ExtendedTest {
         hToken["USDT"] = 0x2057C8ECB70Afd7Bee667d76B4CD373A325b1a20;
         hToken["USDC"] = 0x25D8039bB044dC227f741a9e381CA4cEAE2E6aE8;
         hToken["DAI"] = 0x56900d66D74Cb14E3c86895789901C9135c95b16;
+    }
+
+    // set optimal route for selling HOP --> want on Velodrome
+    // (address,address,bool)[]
+    function _setVeloRoute() internal {
+        veloRoute["WETH"] = [{"from":"0x4200000000000000000000000000000000000042","to":"0x3c8b650257cfb5f272f799f5e2b4e65093a11a05","stable":false}]; 
+        veloRoute["USDT"] = [{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false},{"from":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","to":"0x94b008aA00579c1307B0EF2c499aD98a8ce58e58","stable":true}]
+        veloRoute["USDC"] = [{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false}]
+        veloRoute["DAI"] = [{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false},{"from":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","to":"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1","stable":true}]
     }
     /////////////////////////////////////////////////////////////////
 
