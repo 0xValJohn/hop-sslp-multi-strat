@@ -10,6 +10,14 @@ import {Strategy} from "../../Strategy.sol";
 import "../../interfaces/Hop/ISwap.sol";
 import "forge-std/console2.sol";
 
+interface IVelodromeRouter {
+    struct Route {
+        address from;
+        address to;
+        bool stable;
+    }
+}
+
 string constant vaultArtifact = "artifacts/Vault.json";
 
 contract StrategyFixture is ExtendedTest {
@@ -33,8 +41,7 @@ contract StrategyFixture is ExtendedTest {
     mapping(string => address) public tokenAddrs;
     mapping(string => uint256) public tokenPrices;
     mapping(string => address) public hToken;
-    mapping(string => string) public veloRoute;
-
+    mapping(string => IVelodromeRouter.Route[]) public veloRoute;
 
     address public gov = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
     address public user = address(1);
@@ -193,10 +200,10 @@ contract StrategyFixture is ExtendedTest {
     // set optimal route for selling HOP --> want on Velodrome
     // (address,address,bool)[]
     function _setVeloRoute() internal {
-        veloRoute["WETH"] = '[{"from":"0x4200000000000000000000000000000000000042","to":"0x3c8b650257cfb5f272f799f5e2b4e65093a11a05","stable":false}]'; 
-        veloRoute["USDT"] = '[{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false},{"from":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","to":"0x94b008aA00579c1307B0EF2c499aD98a8ce58e58","stable":true}]';
-        veloRoute["USDC"] = '[{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false}]';
-        veloRoute["DAI"] = '[{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false},{"from":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","to":"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1","stable":true}]';
+        veloRoute["WETH"] = '{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x3c8b650257cfb5f272f799f5e2b4e65093a11a05","stable":false}'; 
+        veloRoute["USDT"] = '{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false},{"from":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","to":"0x94b008aA00579c1307B0EF2c499aD98a8ce58e58","stable":true}';
+        veloRoute["USDC"] = '{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false}';
+        veloRoute["DAI"] = '{"from":"0xE38faf9040c7F09958c638bBDB977083722c5156","to":"0x4200000000000000000000000000000000000006","stable":false},{"from":"0x4200000000000000000000000000000000000006","to":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","stable":false},{"from":"0x7F5c764cBc14f9669B88837ca1490cCa17c31607","to":"0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1","stable":true}';
     }
     /////////////////////////////////////////////////////////////////
 
