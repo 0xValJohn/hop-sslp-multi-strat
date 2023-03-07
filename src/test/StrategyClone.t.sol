@@ -49,7 +49,8 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol]
+                lpStaker[tokenSymbol],
+                veloRoute[tokenSymbol]
             );
 
             vm.prank(gov);
@@ -103,7 +104,8 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol]
+                lpStaker[tokenSymbol],
+                veloRoute[tokenSymbol]
             );
 
             vm.prank(gov);
@@ -120,7 +122,8 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol]
+                lpStaker[tokenSymbol],
+                veloRoute[tokenSymbol]
             );
         }
     }
@@ -152,7 +155,8 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol]
+                lpStaker[tokenSymbol],
+                veloRoute[tokenSymbol]
             );
 
             vm.prank(gov);
@@ -169,7 +173,8 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol]
+                lpStaker[tokenSymbol],
+                veloRoute[tokenSymbol]
             );
         }
     }
