@@ -9,17 +9,16 @@ import "./interfaces/Hop/ISwap.sol";
 import "./interfaces/Hop/IStakingRewards.sol";
 import "./interfaces/ySwaps/ITradeFactory.sol";
 
-struct route {
-    address from;
-    address to;
-    bool stable;
-}
-
 interface IVelodromeRouter {
+    struct Route {
+        address from;
+        address to;
+        bool stable;
+    }
     function swapExactTokensForTokens(
         uint amountIn,
         uint amountOutMin,
-        route[] calldata routes,
+        Route[] calldata routes,
         address to,
         uint deadline
     ) external returns (uint[] memory amounts);
@@ -45,18 +44,18 @@ contract Strategy is BaseStrategy {
     uint256 internal constant MAX_BIPS = 10_000;
     uint256 internal wantDecimals;
 
-    address internal constant velodromeRouter = 0xa132DAB612dB5cB9fC9Ac426A0Cc215A3423F9c9;
+    address internal constant VELODROME_ROUTER = 0xa132DAB612dB5cB9fC9Ac426A0Cc215A3423F9c9;
 
-    route[] public sellRewardsRoute;
+    IVelodromeRouter.Route[] public sellRewardsRoute;
 
-    constructor(address _vault, uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, string memory _routes)
+    constructor(address _vault, uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, IVelodromeRouter.Route[] memory _routes)
         public
         BaseStrategy(_vault)
     {
         _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _routes);
     }
 
-    function _initializeStrategy(uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, string memory _routes) internal {
+    function _initializeStrategy(uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, IVelodromeRouter.Route[] memory _routes) internal {
         minReportDelay = 21 days; // time to trigger harvesting by keeper depending on gas base fee
         maxReportDelay = 100 days; // time to trigger haresting by keeper no matter what
         wantDecimals = IERC20Metadata(address(want)).decimals();
@@ -69,15 +68,14 @@ contract Strategy is BaseStrategy {
         rewardToken = IERC20(lpStaker.rewardsToken());
         require(address(lpContract.getToken(0)) == address(want), "!want");
         IERC20(want).safeApprove(address(lpContract), max);
-        IERC20(rewardToken ).safeApprove(address(velodromeRouter), max);
+        IERC20(rewardToken ).safeApprove(address(VELODROME_ROUTER), max);
         IERC20(lpToken).safeApprove(address(lpContract), max);
         IERC20(lpToken).safeApprove(address(lpStaker), max);
 
         // define the hop --> want route for velodrome
         // iterate over _routes and add each route to sellRewardsRoute
-        route[] memory routes = abi.decode(bytes(_routes), (route[]));
-        for (uint256 i = 0; i < routes.length; i++) {
-            sellRewardsRoute.push(routes[i]);
+        for (uint256 i = 0; i < _routes.length; i++) {
+            sellRewardsRoute.push(_routes[i]);
         }
     }
 
@@ -90,7 +88,7 @@ contract Strategy is BaseStrategy {
         uint256 _maxSingleDeposit,
         address _lpContract,
         address _lpStaker,
-        string memory _routes
+        IVelodromeRouter.Route[] memory _routes
     ) external {
         _initialize(_vault, _strategist, _rewards, _keeper);
         _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _routes);
@@ -105,7 +103,7 @@ contract Strategy is BaseStrategy {
         uint256 _maxSingleDeposit,
         address _lpContract,
         address _lpStaker,
-        string memory _routes
+        IVelodromeRouter.Route[] memory _routes
     ) external returns (address newStrategy) {
         require(isOriginal, "!clone");
         bytes20 addressBytes = bytes20(address(this));
@@ -315,18 +313,17 @@ contract Strategy is BaseStrategy {
     }
 
     // Takes a json string to define the hop --> want route for velodrome
-    function setSellRewardsRoute(string memory _routes) external onlyVaultManagers {
+    function setSellRewardsRoute(IVelodromeRouter.Route[] calldata _routes) external onlyVaultManagers {
         delete sellRewardsRoute; // clear the array
-        route[] memory routes = abi.decode(bytes(_routes), (route[]));
-        for (uint256 i = 0; i < routes.length; i++) {
-            sellRewardsRoute.push(routes[i]);
+        for (uint256 i = 0; i < _routes.length; i++) {
+            sellRewardsRoute.push(_routes[i]);
         }
     }
 
     // Sells HOP for want
     function _sell(uint256 _rewardTokenAmount) internal {      
         if (_rewardTokenAmount > 1e17) {
-            IVelodromeRouter(velodromeRouter).swapExactTokensForTokens(
+            IVelodromeRouter(VELODROME_ROUTER).swapExactTokensForTokens(
                 _rewardTokenAmount, // amountIn
                 0, // amountOutMin
                 sellRewardsRoute,
