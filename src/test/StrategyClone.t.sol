@@ -4,6 +4,7 @@ pragma solidity ^0.8.15;
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {Strategy} from "../Strategy.sol";
 import {IVault} from "../interfaces/Vault.sol";
+import {IVelodromeRouter} from "../interfaces/Velodrome.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "forge-std/console2.sol";
@@ -48,8 +49,7 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol],
-                veloRoute[tokenSymbol]
+                lpStaker[tokenSymbol]
             );
 
             vm.prank(gov);
@@ -103,8 +103,7 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol],
-                veloRoute[tokenSymbol]
+                lpStaker[tokenSymbol]
             );
 
             vm.prank(gov);
@@ -121,8 +120,7 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol],
-                veloRoute[tokenSymbol]
+                lpStaker[tokenSymbol]
             );
         }
     }
@@ -154,8 +152,7 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol],
-                veloRoute[tokenSymbol]
+                lpStaker[tokenSymbol]
             );
 
             vm.prank(gov);
@@ -172,8 +169,7 @@ contract StrategyCloneTest is StrategyFixture {
                 maxSlippage[tokenSymbol],
                 maxSingleDeposit[tokenSymbol],
                 lpContract[tokenSymbol],
-                lpStaker[tokenSymbol],
-                veloRoute[tokenSymbol]
+                lpStaker[tokenSymbol]
             );
         }
     }

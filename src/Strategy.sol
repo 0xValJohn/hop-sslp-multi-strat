@@ -8,21 +8,7 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/Hop/ISwap.sol";
 import "./interfaces/Hop/IStakingRewards.sol";
 import "./interfaces/ySwaps/ITradeFactory.sol";
-
-interface IVelodromeRouter {
-    struct Route {
-        address from;
-        address to;
-        bool stable;
-    }
-    function swapExactTokensForTokens(
-        uint amountIn,
-        uint amountOutMin,
-        Route[] calldata routes,
-        address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
-}
+import {IVelodromeRouter} from "./interfaces/Velodrome.sol";
 
 contract Strategy is BaseStrategy {
     using SafeERC20 for IERC20;
@@ -48,14 +34,14 @@ contract Strategy is BaseStrategy {
 
     IVelodromeRouter.Route[] public sellRewardsRoute;
 
-    constructor(address _vault, uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, IVelodromeRouter.Route[] memory _routes)
+    constructor(address _vault, uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker)
         public
         BaseStrategy(_vault)
     {
-        _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _routes);
+        _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker);
     }
 
-    function _initializeStrategy(uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker, IVelodromeRouter.Route[] memory _routes) internal {
+    function _initializeStrategy(uint256 _maxSlippage, uint256 _maxSingleDeposit, address _lpContract, address _lpStaker) internal {
         minReportDelay = 21 days; // time to trigger harvesting by keeper depending on gas base fee
         maxReportDelay = 100 days; // time to trigger haresting by keeper no matter what
         wantDecimals = IERC20Metadata(address(want)).decimals();
@@ -71,12 +57,6 @@ contract Strategy is BaseStrategy {
         IERC20(rewardToken ).safeApprove(address(VELODROME_ROUTER), max);
         IERC20(lpToken).safeApprove(address(lpContract), max);
         IERC20(lpToken).safeApprove(address(lpStaker), max);
-
-        // define the hop --> want route for velodrome
-        // iterate over _routes and add each route to sellRewardsRoute
-        for (uint256 i = 0; i < _routes.length; i++) {
-            sellRewardsRoute.push(_routes[i]);
-        }
     }
 
     function initialize(
@@ -87,11 +67,10 @@ contract Strategy is BaseStrategy {
         uint256 _maxSlippage,
         uint256 _maxSingleDeposit,
         address _lpContract,
-        address _lpStaker,
-        IVelodromeRouter.Route[] memory _routes
+        address _lpStaker
     ) external {
         _initialize(_vault, _strategist, _rewards, _keeper);
-        _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _routes);
+        _initializeStrategy(_maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker);
     }
 
     function clone(
@@ -102,8 +81,7 @@ contract Strategy is BaseStrategy {
         uint256 _maxSlippage,
         uint256 _maxSingleDeposit,
         address _lpContract,
-        address _lpStaker,
-        IVelodromeRouter.Route[] memory _routes
+        address _lpStaker
     ) external returns (address newStrategy) {
         require(isOriginal, "!clone");
         bytes20 addressBytes = bytes20(address(this));
@@ -114,7 +92,7 @@ contract Strategy is BaseStrategy {
             mstore(add(clone_code, 0x28), 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000)
             newStrategy := create(0, clone_code, 0x37)
         }
-        Strategy(newStrategy).initialize(_vault, _strategist, _rewards, _keeper, _maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker, _routes);
+        Strategy(newStrategy).initialize(_vault, _strategist, _rewards, _keeper, _maxSlippage, _maxSingleDeposit, _lpContract, _lpStaker);
 
         emit Cloned(newStrategy);
     }
