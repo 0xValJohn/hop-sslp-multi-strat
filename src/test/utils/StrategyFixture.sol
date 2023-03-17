@@ -2,6 +2,7 @@
 pragma solidity ^0.8.15;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ExtendedTest} from "./ExtendedTest.sol";
 import {Vm} from "forge-std/Vm.sol";
@@ -9,6 +10,8 @@ import {IVault} from "../../interfaces/Vault.sol";
 import {Strategy} from "../../Strategy.sol";
 import "../../interfaces/Hop/ISwap.sol";
 import "forge-std/console2.sol";
+import "forge-std/console.sol";
+import {IVelodromeRouter} from "../../interfaces/Velodrome.sol";
 
 string constant vaultArtifact = "artifacts/Vault.json";
 
@@ -33,6 +36,7 @@ contract StrategyFixture is ExtendedTest {
     mapping(string => address) public tokenAddrs;
     mapping(string => uint256) public tokenPrices;
     mapping(string => address) public hToken;
+    mapping(string => IVelodromeRouter.Route[]) public veloRoute;
 
     address public gov = 0xFEB4acf3df3cDEA7399794D0869ef76A6EfAff52;
     address public user = address(1);
@@ -50,6 +54,7 @@ contract StrategyFixture is ExtendedTest {
     uint256 public constant DELTA = 10 ** 1;
 
     function setUp() public virtual {
+        
         _setTokenPrices();
         _setTokenAddrs();
         _setMaxSlippage();
@@ -57,19 +62,20 @@ contract StrategyFixture is ExtendedTest {
         _setLpContract();
         _setLpStaker();
         _setHToken();
-
+        _setVeloRoute();
+        
         weth = IERC20(tokenAddrs["WETH"]);
 
         // want selector for strategy
         // string[4] memory _tokensToTest = ["DAI", "USDT", "USDC", "WETH"];
-        string[1] memory _tokensToTest = ["USDC"];
-
+        string[1] memory _tokensToTest = ["USDT"];
+        
         for (uint8 i = 0; i < _tokensToTest.length; ++i) {
             string memory _tokenToTest = _tokensToTest[i];
             IERC20 _want = IERC20(tokenAddrs[_tokenToTest]);
-
+            
             (address _vault, address _strategy) = deployVaultAndStrategy(
-                address(_want), _tokenToTest, gov, rewards, "", "", guardian, management, keeper, strategist
+                address(_want), _tokenToTest, gov, rewards, IERC20Metadata(address(_want)).name(), IERC20Metadata(address(_want)).symbol(), guardian, management, keeper, strategist
             );
 
             assetFixtures.push(AssetFixture(IVault(_vault), Strategy(_strategy), _want));
@@ -77,8 +83,6 @@ contract StrategyFixture is ExtendedTest {
             vm.label(address(_vault), string(abi.encodePacked(_tokenToTest, "Vault")));
             vm.label(address(_strategy), string(abi.encodePacked(_tokenToTest, "Strategy")));
             vm.label(address(_want), _tokenToTest);
-
-            // poolBalancesHelper(_tokenToTest);
         }
 
         // add more labels to make your traces readable
@@ -117,13 +121,15 @@ contract StrategyFixture is ExtendedTest {
 
     // Deploys a strategy
     function deployStrategy(address _vault, string memory _tokenSymbol) public returns (address) {
+        
         Strategy _strategy = new Strategy(
             _vault,
             maxSlippage[_tokenSymbol],
             maxSingleDeposit[_tokenSymbol],
             lpContract[_tokenSymbol],
-            lpStaker[_tokenSymbol]
-            );
+            lpStaker[_tokenSymbol],
+            veloRoute[_tokenSymbol]
+        );
 
         return address(_strategy);
     }
@@ -147,6 +153,15 @@ contract StrategyFixture is ExtendedTest {
         vm.prank(_strategist);
         _strategyAddr = deployStrategy(_vaultAddr, _tokenSymbol);
         Strategy _strategy = Strategy(_strategyAddr);
+
+        IVelodromeRouter.Route[] memory memoryRoutes = new IVelodromeRouter.Route[](veloRoute[_tokenSymbol].length);
+
+        for (uint i = 0; i < veloRoute[_tokenSymbol].length; i++) {
+            memoryRoutes[i] = veloRoute[_tokenSymbol][i];
+        }
+
+        vm.prank(_gov);
+        _strategy.setSellRewardsRoute(memoryRoutes);
 
         vm.prank(_strategist);
         _strategy.setKeeper(_keeper);
@@ -184,6 +199,60 @@ contract StrategyFixture is ExtendedTest {
         hToken["USDT"] = 0x2057C8ECB70Afd7Bee667d76B4CD373A325b1a20;
         hToken["USDC"] = 0x25D8039bB044dC227f741a9e381CA4cEAE2E6aE8;
         hToken["DAI"] = 0x56900d66D74Cb14E3c86895789901C9135c95b16;
+    }
+
+    // set optimal route for selling HOP --> want on Velodrome
+    // (address,address,bool)[]
+    function _setVeloRoute() internal {
+        address HOP = 0xc5102fE9359FD9a28f877a67E36B0F050d81a3CC;
+
+        // WETH
+        IVelodromeRouter.Route memory route = IVelodromeRouter.Route({
+            from: HOP, 
+            to: tokenAddrs["WETH"], 
+            stable: false
+        });
+        // All tokens have this common route
+        veloRoute["WETH"].push(route);
+        veloRoute["USDT"].push(route);
+        veloRoute["USDC"].push(route);
+        veloRoute["DAI"].push(route);
+
+        // USDT
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["WETH"], 
+            to: tokenAddrs["USDC"], 
+            stable: false
+        });
+        veloRoute["USDT"].push(route);
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["USDC"], 
+            to: tokenAddrs["USDT"], 
+            stable: true
+        });
+        veloRoute["USDT"].push(route);
+
+        // USDC
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["WETH"], 
+            to: tokenAddrs["USDC"], 
+            stable: false
+        });
+        veloRoute["USDC"].push(route);
+
+        // DAI
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["WETH"], 
+            to: tokenAddrs["USDC"], 
+            stable: false
+        });
+        veloRoute["DAI"].push(route);
+        route = IVelodromeRouter.Route({
+            from: tokenAddrs["USDC"], 
+            to: tokenAddrs["DAI"], 
+            stable: true
+        });
+        veloRoute["DAI"].push(route);
     }
     /////////////////////////////////////////////////////////////////
 
